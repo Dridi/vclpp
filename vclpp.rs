@@ -77,14 +77,14 @@ enum Kind {
     Number,
     Delim,
     SimpleString,
-    MultilineString,
+    BlockString,
     Comment,
     CComment,
     CxxComment,
-    OpeningBracket,
-    ClosingBracket,
-    OpeningCurlyBrace,
-    ClosingCurlyBrace,
+    OpeningGroup,
+    ClosingGroup,
+    OpeningBlock,
+    ClosingBlock,
     Bad(&'static str),
 }
 
@@ -159,17 +159,16 @@ impl<'a> Tokenizer<'a> {
             (None, _, ';') => (Some(Delim), CurrentReady),
             (None, _, '"') => (Some(SimpleString), NeedsMore),
             (None, _, '#') => (Some(Comment), NeedsMore),
-            (None, _, '(') => (Some(OpeningBracket), CurrentReady),
-            (None, _, ')') => (Some(ClosingBracket), CurrentReady),
-            (None, _, '{') => (Some(OpeningCurlyBrace), NeedsMore),
-            (None, _, '}') => (Some(ClosingCurlyBrace), CurrentReady),
+            (None, _, '(') => (Some(OpeningGroup), CurrentReady),
+            (None, _, ')') => (Some(ClosingGroup), CurrentReady),
+            (None, _, '{') => (Some(OpeningBlock), NeedsMore),
+            (None, _, '}') => (Some(ClosingBlock), CurrentReady),
 
             (None, _, _) => (Some(Bad("unexpected character")), Done),
 
-            (Some(OpeningCurlyBrace), Some('{'), '"')
-                => (Some(MultilineString), NeedsMore),
-            (Some(OpeningCurlyBrace), _, _)
-                => (Some(OpeningCurlyBrace), PreviousReady),
+            (Some(OpeningBlock), Some('{'), '"')
+                => (Some(BlockString), NeedsMore),
+            (Some(OpeningBlock), _, _) => (Some(OpeningBlock), PreviousReady),
 
             (Some(Delim), Some('/'), '*') => (Some(CComment), NeedsMore),
             (Some(Delim), Some('/'), '/') => (Some(CxxComment), NeedsMore),
@@ -198,10 +197,9 @@ impl<'a> Tokenizer<'a> {
                 => (Some(SimpleString), CurrentReady),
             (Some(SimpleString), _, _) => (Some(SimpleString), NeedsMore),
 
-            (Some(MultilineString), Some('"'), '}')
-                => (Some(MultilineString), CurrentReady),
-            (Some(MultilineString), _, _)
-                => (Some(MultilineString), NeedsMore),
+            (Some(BlockString), Some('"'), '}')
+                => (Some(BlockString), CurrentReady),
+            (Some(BlockString), _, _) => (Some(BlockString), NeedsMore),
 
             (Some(Comment), _, '\n') => (Some(Comment), PreviousReady),
             (Some(Comment), _, _) => (Some(Comment), NeedsMore),
