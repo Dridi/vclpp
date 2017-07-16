@@ -115,7 +115,7 @@ enum Handling {
 struct Tokenizer<'a> {
     chars: Chars<'a>,
     token: Token,
-    previous: Option<char>,
+    previous: char,
     handling: Handling,
 }
 
@@ -129,7 +129,7 @@ impl<'a> Tokenizer<'a> {
                 start: Position::new(),
                 end: Position::new(),
             },
-            previous: None,
+            previous: '?', // doesn't matter when token.kind is None
             handling: NeedsMore,
         }
     }
@@ -166,15 +166,14 @@ impl<'a> Tokenizer<'a> {
 
             (None, _, _) => (Some(Bad("unexpected character")), Done),
 
-            (Some(OpeningBlock), Some('{'), '"')
-                => (Some(BlockString), NeedsMore),
+            (Some(OpeningBlock), '{', '"') => (Some(BlockString), NeedsMore),
             (Some(OpeningBlock), _, _) => (Some(OpeningBlock), PreviousReady),
 
-            (Some(Delim), Some('/'), '*') => (Some(CComment), NeedsMore),
-            (Some(Delim), Some('/'), '/') => (Some(CxxComment), NeedsMore),
-            (Some(Delim), Some('/'), _) => (Some(Delim), PreviousReady),
+            (Some(Delim), '/', '*') => (Some(CComment), NeedsMore),
+            (Some(Delim), '/', '/') => (Some(CxxComment), NeedsMore),
+            (Some(Delim), '/', _) => (Some(Delim), PreviousReady),
 
-            (Some(Name), Some('.'), '.') => (Some(Bad("invalid name")), Done),
+            (Some(Name), '.', '.') => (Some(Bad("invalid name")), Done),
             (Some(Name), _, 'a'...'z') |
             (Some(Name), _, 'A'...'Z') |
             (Some(Name), _, '0'...'9') |
@@ -197,22 +196,20 @@ impl<'a> Tokenizer<'a> {
                 => (Some(SimpleString), CurrentReady),
             (Some(SimpleString), _, _) => (Some(SimpleString), NeedsMore),
 
-            (Some(BlockString), Some('"'), '}')
-                => (Some(BlockString), CurrentReady),
+            (Some(BlockString), '"', '}') => (Some(BlockString), CurrentReady),
             (Some(BlockString), _, _) => (Some(BlockString), NeedsMore),
 
             (Some(Comment), _, '\n') => (Some(Comment), PreviousReady),
             (Some(Comment), _, _) => (Some(Comment), NeedsMore),
 
-            (Some(CComment), Some('*'), '/')
-                => (Some(CComment), CurrentReady),
+            (Some(CComment), '*', '/') => (Some(CComment), CurrentReady),
             (Some(CComment), _, _) => (Some(CComment), NeedsMore),
 
             (Some(CxxComment), _, '\n') => (Some(CxxComment), PreviousReady),
             (Some(CxxComment), _, _) => (Some(CxxComment), NeedsMore),
 
             (_, _, _) => {
-                panic!("{:?}, {:?}, '{}'",
+                panic!("{:?}, '{}', '{}'",
                     self.token.kind, self.previous, c)
             }
         }
@@ -235,8 +232,8 @@ impl<'a> Tokenizer<'a> {
                 }
             },
             HasChar => {
-                assert!(self.previous.is_some());
-                self.previous.unwrap()
+                assert!(self.token.kind.is_some());
+                self.previous
             },
             _ => panic!()
         };
@@ -257,7 +254,7 @@ impl<'a> Tokenizer<'a> {
 
         self.handling = handling;
         self.token.kind = kind;
-        self.previous = Some(c);
+        self.previous = c;
     }
 }
 
