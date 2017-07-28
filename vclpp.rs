@@ -75,7 +75,7 @@ impl fmt::Display for Position {
 #[derive(Clone, Copy, Debug)]
 enum Lexeme {
     Blank,
-    Name,
+    Name(usize), // number of dots in a name
     Prop,
     Integer,
     Number,
@@ -147,7 +147,7 @@ impl<'a> Tokenizer<'a> {
             (None, _, '\r') |
             (None, _, '\t') => (Some(Blank), CurrentReady),
             (None, _, 'a'...'z') |
-            (None, _, 'A'...'Z') => (Some(Name), NeedsMore),
+            (None, _, 'A'...'Z') => (Some(Name(0)), NeedsMore),
             (None, _, '0'...'9') => (Some(Integer), NeedsMore),
             (None, _, '.') => (Some(Prop), CurrentReady),
             (None, _, '/') => (Some(Delim), NeedsMore),
@@ -179,14 +179,14 @@ impl<'a> Tokenizer<'a> {
             (Some(Delim), '/', '/') => (Some(CxxComment), NeedsMore),
             (Some(Delim), '/', _) => (Some(Delim), PreviousReady),
 
-            (Some(Name), '.', '.') => (Some(Bad("invalid name")), Done),
-            (Some(Name), _, 'a'...'z') |
-            (Some(Name), _, 'A'...'Z') |
-            (Some(Name), _, '0'...'9') |
-            (Some(Name), _, '_') |
-            (Some(Name), _, '-') |
-            (Some(Name), _, '.') => (Some(Name), NeedsMore),
-            (Some(Name), _, _) => (Some(Name), PreviousReady),
+            (Some(Name(_)), '.', '.') => (Some(Bad("invalid name")), Done),
+            (Some(Name(d)), _, 'a'...'z') |
+            (Some(Name(d)), _, 'A'...'Z') |
+            (Some(Name(d)), _, '0'...'9') |
+            (Some(Name(d)), _, '_') |
+            (Some(Name(d)), _, '-') => (Some(Name(d)), NeedsMore),
+            (Some(Name(d)), _, '.') => (Some(Name(d+1)), NeedsMore),
+            (Some(Name(d)), _, _) => (Some(Name(d)), PreviousReady),
 
             (Some(Integer), _, '.') => (Some(Number), NeedsMore),
             (Some(Integer), _, '0'...'9') => (Some(Integer), NeedsMore),
