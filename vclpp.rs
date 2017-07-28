@@ -300,49 +300,194 @@ impl<'a> Iterator for Tokenizer<'a> {
 #[derive(Clone, Copy, Debug)]
 enum Expected {
     Code,
+    Ident,
+    Block,
+    Dot,
+    Member,
+    FieldOrMethod,
+    Value,
+    EndOfField,
+    Arguments,
+    EndOfMethod,
+    SemiColon,
 }
 
 struct Preprocessor {
     expect: Expected,
     groups: isize,
     blocks: isize,
+    ident: Option<Token>,
+    object: Option<Token>,
+    symbol: Option<Token>,
+    field: Option<Token>,
+    method: Option<Token>,
 }
 
 impl Preprocessor {
-    fn exec<'a, W: Write>(src: &'a String, mut out: BufWriter<W>) {
-        let mut pp = Preprocessor {
+    fn new() -> Preprocessor {
+        Preprocessor {
             expect: Code,
             groups: 0,
             blocks: 0,
-        };
+            ident: None,
+            object: None,
+            symbol: None,
+            field: None,
+            method: None,
+        }
+    }
+
+    fn balance(&mut self, tok: Token) -> Result<(), Token> {
+        try!(match (tok.lexeme, self.groups) {
+            (Some(OpeningBlock), 0) => Ok(()),
+            (Some(OpeningBlock), _) => Err(tok),
+            (_, _) => Ok(()),
+        });
+        match tok.lexeme {
+            Some(OpeningGroup) => self.groups += 1,
+            Some(ClosingGroup) => self.groups -= 1,
+            Some(OpeningBlock) => self.blocks += 1,
+            Some(ClosingBlock) => self.blocks -= 1,
+            _ => (),
+        }
+        assert!(self.groups >= -1);
+        assert!(self.blocks >= -1);
+        match (self.groups, self.blocks) {
+            (-1, _) |
+            (_, -1) => Err(tok),
+            (0, 0) => Ok(()),
+            (_, 0) => Err(tok),
+            (_, _) => Ok(()),
+        }
+    }
+
+    fn exec<'a, W: Write>(src: &'a String, mut out: BufWriter<W>)
+    -> Result<(), Token> {
+        let mut pp = Preprocessor::new();
         for tok in Tokenizer::new(src.chars()) {
             assert!(tok.lexeme.is_some());
-            match (pp.expect, tok.lexeme.unwrap()) {
-                (Code, OpeningGroup) => pp.groups += 1,
-                (Code, ClosingGroup) => pp.groups -= 1,
-                (Code, OpeningBlock) => pp.blocks += 1,
-                (Code, ClosingBlock) => pp.blocks -= 1,
-                (_, _) => (),
-            }
-            assert!(pp.groups >= -1);
-            assert!(pp.blocks >= -1);
-            match (pp.groups, pp.blocks) {
-                (-1, _) => unimplemented!(),
-                (_, -1) => unimplemented!(),
-                (_, 0) => {
-                    if pp.groups > 0 {
-                        unimplemented!();
-                    }
+            try!(pp.balance(tok));
+            match (pp.expect, pp.blocks, pp.groups, tok.lexeme.unwrap()) {
+                (Code, 0, _, Name(0)) => (),
+                (Code, 0, _, Name(1)) => {
+                    pp.object = Some(tok);
+                    pp.expect = Ident;
                 }
-                (_, _) => (),
+                (Code, 0, _, Name(_)) => unimplemented!(),
+                (Code, _, _, _) => (),
+
+                // NB. Abandon comments inside preprocessed code
+                (_, _, _, Comment) |
+                (_, _, _, CComment) |
+                (_, _, _, CxxComment) => continue,
+
+                (Ident, _, _, Name(0)) => pp.expect = Block,
+                (Ident, _, _, Blank) => continue,
+                (Ident, _, _, _) => unimplemented!(),
+
+                (Block, _, _, OpeningBlock) => pp.expect = Dot,
+                (Block, _, _, Blank) => continue,
+                (Block, _, _, _) => unimplemented!(),
+
+                (Dot, _, _, ClosingBlock) => {
+                    if pp.field.is_none() && pp.method.is_none() {
+                        write!(out, ");\n");
+                    }
+                    assert!(pp.groups == 0);
+                    assert!(pp.blocks == 0);
+                    pp = Preprocessor::new();
+                }
+                (Dot, _, _, Prop) => pp.expect = Member,
+                (Dot, _, _, Blank) => continue,
+                (Dot, _, _, _) => unimplemented!(),
+
+                (Member, _, _, Name(0)) => {
+                    pp.symbol = Some(tok);
+                    pp.expect = FieldOrMethod;
+                }
+                (Member, _, _, Name(_)) => unimplemented!(),
+                (Member, _, _, Blank) => continue,
+                (Member, _, _, _) => unimplemented!(),
+
+                (FieldOrMethod, _, _, Delim('=')) => {
+                    if pp.method.is_some() {
+                        return Err(tok);
+                    }
+                    if pp.field.is_some() {
+                        write!(out, ", ");
+                    }
+                    write!(out, "\n");
+                    pp.field = pp.symbol;
+                    pp.expect = Value;
+                }
+                (FieldOrMethod, _, _, OpeningGroup) => {
+                    assert!(pp.groups == 1);
+                    if pp.method.is_none() {
+                        write!(out, ");\n");
+                    }
+                    pp.method = pp.symbol;
+                    pp.expect = Arguments;
+                }
+                (FieldOrMethod, _, _, Blank) => continue,
+                (FieldOrMethod, _, _, _) => unimplemented!(),
+
+                (Value, _, 0, Delim(';')) => pp.expect = EndOfField,
+                (Value, _, _, _) => (),
+
+                (Arguments, _, 0, ClosingGroup) => pp.expect = EndOfMethod,
+                (Arguments, _, _, _) => (),
+
+                (SemiColon, _, 0, Delim(';')) => pp.expect = Dot,
+                (SemiColon, _, _, _) => (),
+
+                (_, _, _, _) => panic!(),
             }
             match pp.expect {
                 Code => write!(out, "{}", &src[&tok]),
+                Block => {
+                    assert!(pp.object.is_some());
+                    pp.ident = Some(tok);
+                    write!(out, "sub vcl_init {{\n\tnew {} = {}(",
+                        &src[&tok], &src[&pp.object.unwrap()])
+                }
+                Value => {
+                    assert!(pp.field.is_some());
+                    match pp.symbol {
+                        Some(_) => {
+                            assert_eq!(&src[&tok], "=");
+                            pp.symbol = None;
+                            write!(out, "\t\t{} =", &src[&pp.field.unwrap()])
+                        }
+                        None => write!(out, "{}", &src[&tok])
+                    }
+                }
+                EndOfField => {
+                    pp.expect = Dot;
+                    Ok(())
+                }
+                Arguments => {
+                    assert!(pp.ident.is_some());
+                    assert!(pp.method.is_some());
+                    match pp.symbol {
+                        Some(_) => {
+                            pp.symbol = None;
+                            write!(out, "\t{}.{}(", &src[&pp.ident.unwrap()],
+                                &src[&pp.method.unwrap()])
+                        }
+                        None => write!(out, "{}", &src[&tok])
+                    }
+                }
+                EndOfMethod => {
+                    pp.expect = SemiColon;
+                    write!(out, ");\n")
+                }
+                _ => Ok(()),
             };
         }
         if pp.groups != 0 || pp.blocks != 0 {
             unimplemented!();
         }
+        Ok(())
     }
 }
 
@@ -359,5 +504,8 @@ fn main() {
         }
     }
 
-    Preprocessor::exec(&buf, BufWriter::new(stdout()));
+    match Preprocessor::exec(&buf, BufWriter::new(stdout())) {
+        Err(tok) => panic!("{:?}", tok.lexeme),
+        _ => ()
+    }
 }
