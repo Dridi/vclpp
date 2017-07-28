@@ -18,7 +18,7 @@
 
 use std::fmt;
 use std::io::stdin;
-use std::ops::Range;
+use std::ops::Index;
 use std::str::Chars;
 use std::string::String;
 
@@ -95,9 +95,11 @@ struct Token {
     end: Position,
 }
 
-impl Token {
-    fn to_range(&self) -> Range<usize> {
-        self.start.offset..self.end.offset
+impl<'a> Index<&'a Token> for String {
+    type Output = str;
+
+    fn index(&self, tok: &'a Token) -> &str {
+        &self.as_str()[tok.start.offset..tok.end.offset]
     }
 }
 
@@ -314,8 +316,7 @@ fn main() {
         match tok.lexeme {
             Some(Bad(s)) => println!("bad token: {}", s),
             Some(_) => {
-                println!("token: {:?} '{}'", tok.lexeme,
-                    &buf.as_str()[tok.to_range()]);
+                println!("token: {:?} '{}'", tok.lexeme, &buf[&tok]);
             }
             None => ()
         }
