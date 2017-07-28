@@ -17,11 +17,15 @@
  */
 
 use std::fmt;
+use std::io::BufWriter;
+use std::io::Write;
 use std::io::stdin;
+use std::io::stdout;
 use std::ops::Index;
 use std::str::Chars;
 use std::string::String;
 
+use Expected::*;
 use Handling::*;
 use Lexeme::*;
 
@@ -293,7 +297,52 @@ impl<'a> Iterator for Tokenizer<'a> {
 
 /* ------------------------------------------------------------------- */
 
-// TODO: preprocessor
+#[derive(Clone, Copy, Debug)]
+enum Expected {
+    Code,
+}
+
+struct Preprocessor {
+    expect: Expected,
+    groups: isize,
+    blocks: isize,
+}
+
+impl Preprocessor {
+    fn exec<'a, W: Write>(src: &'a String, mut out: BufWriter<W>) {
+        let mut pp = Preprocessor {
+            expect: Code,
+            groups: 0,
+            blocks: 0,
+        };
+        for tok in Tokenizer::new(src.chars()) {
+            assert!(tok.lexeme.is_some());
+            match (pp.expect, tok.lexeme.unwrap()) {
+                (Code, OpeningGroup) => pp.groups += 1,
+                (Code, ClosingGroup) => pp.groups -= 1,
+                (Code, OpeningBlock) => pp.blocks += 1,
+                (Code, ClosingBlock) => pp.blocks -= 1,
+                (_, _) => (),
+            }
+            match (pp.groups, pp.blocks) {
+                (-1, _) => unimplemented!(),
+                (_, -1) => unimplemented!(),
+                (_, 0) => {
+                    if pp.groups > 0 {
+                        unimplemented!();
+                    }
+                }
+                (_, _) => (),
+            }
+            match pp.expect {
+                Code => write!(out, "{}", &src[&tok]),
+            };
+        }
+        if pp.groups != 0 || pp.blocks != 0 {
+            unimplemented!();
+        }
+    }
+}
 
 /* ------------------------------------------------------------------- */
 
@@ -308,17 +357,5 @@ fn main() {
         }
     }
 
-    for tok in Tokenizer::new(buf.chars()) {
-        match tok.lexeme {
-            Some(_) => print!("[{}...{}] ", tok.start, tok.end),
-            None => panic!()
-        }
-        match tok.lexeme {
-            Some(Bad(s)) => println!("bad token: {}", s),
-            Some(_) => {
-                println!("token: {:?} '{}'", tok.lexeme, &buf[&tok]);
-            }
-            None => ()
-        }
-    }
+    Preprocessor::exec(&buf, BufWriter::new(stdout()));
 }
