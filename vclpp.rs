@@ -324,6 +324,8 @@ impl Preprocessor {
                 (Code, ClosingBlock) => pp.blocks -= 1,
                 (_, _) => (),
             }
+            assert!(pp.groups >= -1);
+            assert!(pp.blocks >= -1);
             match (pp.groups, pp.blocks) {
                 (-1, _) => unimplemented!(),
                 (_, -1) => unimplemented!(),
