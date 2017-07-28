@@ -231,10 +231,7 @@ impl<'a> Tokenizer<'a> {
                     return;
                 }
             },
-            HasChar => {
-                assert!(self.token.kind.is_some());
-                self.previous
-            },
+            HasChar => self.previous,
             _ => panic!()
         };
 
