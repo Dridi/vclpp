@@ -79,7 +79,7 @@ enum Lexeme {
     Prop,
     Integer,
     Number,
-    Delim,
+    Delim(char),
     SimpleString,
     BlockString,
     Comment,
@@ -150,7 +150,7 @@ impl<'a> Tokenizer<'a> {
             (None, _, 'A'...'Z') => (Some(Name(0)), NeedsMore),
             (None, _, '0'...'9') => (Some(Integer), NeedsMore),
             (None, _, '.') => (Some(Prop), CurrentReady),
-            (None, _, '/') => (Some(Delim), NeedsMore),
+            (None, _, '/') => (Some(Delim('/')), NeedsMore),
             (None, _, '+') |
             (None, _, '-') |
             (None, _, '*') |
@@ -162,7 +162,7 @@ impl<'a> Tokenizer<'a> {
             (None, _, '&') |
             (None, _, '|') |
             (None, _, ',') |
-            (None, _, ';') => (Some(Delim), CurrentReady),
+            (None, _, ';') => (Some(Delim(c)), CurrentReady),
             (None, _, '"') => (Some(SimpleString), NeedsMore),
             (None, _, '#') => (Some(Comment), NeedsMore),
             (None, _, '(') => (Some(OpeningGroup), CurrentReady),
@@ -175,9 +175,9 @@ impl<'a> Tokenizer<'a> {
             (Some(OpeningBlock), '{', '"') => (Some(BlockString), NeedsMore),
             (Some(OpeningBlock), _, _) => (Some(OpeningBlock), PreviousReady),
 
-            (Some(Delim), '/', '*') => (Some(CComment), NeedsMore),
-            (Some(Delim), '/', '/') => (Some(CxxComment), NeedsMore),
-            (Some(Delim), '/', _) => (Some(Delim), PreviousReady),
+            (Some(Delim(_)), '/', '*') => (Some(CComment), NeedsMore),
+            (Some(Delim(_)), '/', '/') => (Some(CxxComment), NeedsMore),
+            (Some(Delim(_)), '/', _) => (Some(Delim('/')), PreviousReady),
 
             (Some(Name(_)), '.', '.') => (Some(Bad("invalid name")), Done),
             (Some(Name(d)), _, 'a'...'z') |
