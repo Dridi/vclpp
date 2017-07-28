@@ -23,7 +23,7 @@ use std::str::Chars;
 use std::string::String;
 
 use Handling::*;
-use Kind::*;
+use Lexeme::*;
 
 /* ------------------------------------------------------------------- */
 
@@ -69,7 +69,7 @@ impl fmt::Display for Position {
 /* ------------------------------------------------------------------- */
 
 #[derive(Clone, Copy, Debug)]
-enum Kind {
+enum Lexeme {
     Blank,
     Name,
     Prop,
@@ -90,7 +90,7 @@ enum Kind {
 
 #[derive(Clone, Copy)]
 struct Token {
-    kind: Option<Kind>,
+    lexeme: Option<Lexeme>,
     start: Position,
     end: Position,
 }
@@ -125,17 +125,17 @@ impl<'a> Tokenizer<'a> {
         Tokenizer {
             chars: chars,
             token: Token {
-                kind: None,
+                lexeme: None,
                 start: Position::new(),
                 end: Position::new(),
             },
-            previous: '?', // doesn't matter when token.kind is None
+            previous: '?', // doesn't matter when token.lexeme is None
             handling: NeedsMore,
         }
     }
 
-    fn next_state(&self, c: char) -> (Option<Kind>, Handling) {
-        match (self.token.kind, self.previous, c) {
+    fn next_state(&self, c: char) -> (Option<Lexeme>, Handling) {
+        match (self.token.lexeme, self.previous, c) {
             (None, _, ' ')  |
             (None, _, '\n') |
             (None, _, '\r') |
@@ -210,19 +210,18 @@ impl<'a> Tokenizer<'a> {
 
             (_, _, _) => {
                 panic!("{:?}, '{}', '{}'",
-                    self.token.kind, self.previous, c)
+                    self.token.lexeme, self.previous, c)
             }
         }
     }
 
     fn next_char(&mut self) {
-
         let c = match self.handling {
             NeedsMore => match self.chars.next() {
                 Some(c) => c,
                 None => {
-                    if self.token.kind.is_some() {
-                        self.token.kind = Some(Bad("incomplete VCL"));
+                    if self.token.lexeme.is_some() {
+                        self.token.lexeme = Some(Bad("incomplete VCL"));
                         self.handling = Done;
                     }
                     else {
@@ -235,7 +234,7 @@ impl<'a> Tokenizer<'a> {
             _ => panic!()
         };
 
-        let (kind, handling) = self.next_state(c);
+        let (lexeme, handling) = self.next_state(c);
 
         match handling {
             PreviousReady => (),
@@ -245,12 +244,12 @@ impl<'a> Tokenizer<'a> {
             }
         }
 
-        if self.token.kind.is_none() {
+        if self.token.lexeme.is_none() {
             self.token.start.move_cursor_to(&self.token.end);
         }
 
         self.handling = handling;
-        self.token.kind = kind;
+        self.token.lexeme = lexeme;
         self.previous = c;
     }
 }
@@ -262,12 +261,12 @@ impl<'a> Iterator for Tokenizer<'a> {
         match self.handling {
             CurrentReady => {
                 self.handling = NeedsMore;
-                self.token.kind = None;
+                self.token.lexeme = None;
                 self.token.start = self.token.end;
             },
             PreviousReady => {
                 self.handling = HasChar;
-                self.token.kind = None;
+                self.token.lexeme = None;
                 self.token.start = self.token.end;
             },
             Done | Dry => return None,
@@ -308,14 +307,14 @@ fn main() {
     }
 
     for tok in Tokenizer::new(buf.chars()) {
-        match tok.kind {
+        match tok.lexeme {
             Some(_) => print!("[{}...{}] ", tok.start, tok.end),
             None => panic!()
         }
-        match tok.kind {
+        match tok.lexeme {
             Some(Bad(s)) => println!("bad token: {}", s),
             Some(_) => {
-                println!("token: {:?} '{}'", tok.kind,
+                println!("token: {:?} '{}'", tok.lexeme,
                     &buf.as_str()[tok.to_range()]);
             }
             None => ()
