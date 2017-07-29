@@ -94,7 +94,7 @@ enum Lexeme {
 
 #[derive(Clone, Copy)]
 struct Token {
-    lexeme: Option<Lexeme>,
+    lexeme: Lexeme,
     start: Position,
     end: Position,
 }
@@ -120,28 +120,36 @@ enum Handling {
 
 struct Tokenizer<'a> {
     chars: Chars<'a>,
-    token: Token,
+    lexeme: Option<Lexeme>,
+    start: Position,
+    end: Position,
     previous: char,
     handling: Handling,
 }
 
 impl<'a> Tokenizer<'a> {
-
     fn new(chars: Chars) -> Tokenizer {
         Tokenizer {
             chars: chars,
-            token: Token {
-                lexeme: None,
-                start: Position::new(),
-                end: Position::new(),
-            },
-            previous: '?', // doesn't matter when token.lexeme is None
+            lexeme: None,
+            start: Position::new(),
+            end: Position::new(),
+            previous: '?', // doesn't matter when lexeme is None
             handling: NeedsMore,
         }
     }
 
+    fn to_token(&self) -> Token {
+        assert!(self.lexeme.is_some());
+        Token {
+            lexeme: self.lexeme.unwrap(),
+            start: self.start,
+            end: self.end,
+        }
+    }
+
     fn next_state(&self, c: char) -> (Option<Lexeme>, Handling) {
-        match (self.token.lexeme, self.previous, c) {
+        match (self.lexeme, self.previous, c) {
             (None, _, ' ')  |
             (None, _, '\n') |
             (None, _, '\r') |
@@ -216,7 +224,7 @@ impl<'a> Tokenizer<'a> {
 
             (_, _, _) => {
                 panic!("{:?}, '{}', '{}'",
-                    self.token.lexeme, self.previous, c)
+                    self.lexeme, self.previous, c)
             }
         }
     }
@@ -226,8 +234,8 @@ impl<'a> Tokenizer<'a> {
             NeedsMore => match self.chars.next() {
                 Some(c) => c,
                 None => {
-                    if self.token.lexeme.is_some() {
-                        self.token.lexeme = Some(Bad("incomplete VCL"));
+                    if self.lexeme.is_some() {
+                        self.lexeme = Some(Bad("incomplete VCL"));
                         self.handling = Done;
                     }
                     else {
@@ -246,16 +254,16 @@ impl<'a> Tokenizer<'a> {
             PreviousReady => (),
             HasChar => panic!(),
             _ => {
-                self.token.end.consume(c);
+                self.end.consume(c);
             }
         }
 
-        if self.token.lexeme.is_none() {
-            self.token.start.move_cursor_to(&self.token.end);
+        if self.lexeme.is_none() {
+            self.start.move_cursor_to(&self.end);
         }
 
         self.handling = handling;
-        self.token.lexeme = lexeme;
+        self.lexeme = lexeme;
         self.previous = c;
     }
 }
@@ -267,13 +275,13 @@ impl<'a> Iterator for Tokenizer<'a> {
         match self.handling {
             CurrentReady => {
                 self.handling = NeedsMore;
-                self.token.lexeme = None;
-                self.token.start = self.token.end;
+                self.lexeme = None;
+                self.start = self.end;
             },
             PreviousReady => {
                 self.handling = HasChar;
-                self.token.lexeme = None;
-                self.token.start = self.token.end;
+                self.lexeme = None;
+                self.start = self.end;
             },
             Done | Dry => return None,
             _ => ()
@@ -282,14 +290,14 @@ impl<'a> Iterator for Tokenizer<'a> {
         loop {
             match self.handling {
                 NeedsMore | HasChar => self.next_char(),
-                Done => return Some(self.token),
+                Done => return Some(self.to_token()),
                 Dry => return None,
                 _ => break
             }
         }
 
         match self.handling {
-            CurrentReady | PreviousReady => Some(self.token),
+            CurrentReady | PreviousReady => Some(self.to_token()),
             _ => panic!()
         }
     }
@@ -339,15 +347,15 @@ impl Preprocessor {
 
     fn balance(&mut self, tok: Token) -> Result<(), Token> {
         try!(match (tok.lexeme, self.groups) {
-            (Some(OpeningBlock), 0) => Ok(()),
-            (Some(OpeningBlock), _) => Err(tok),
+            (OpeningBlock, 0) => Ok(()),
+            (OpeningBlock, _) => Err(tok),
             (_, _) => Ok(()),
         });
         match tok.lexeme {
-            Some(OpeningGroup) => self.groups += 1,
-            Some(ClosingGroup) => self.groups -= 1,
-            Some(OpeningBlock) => self.blocks += 1,
-            Some(ClosingBlock) => self.blocks -= 1,
+            OpeningGroup => self.groups += 1,
+            ClosingGroup => self.groups -= 1,
+            OpeningBlock => self.blocks += 1,
+            ClosingBlock => self.blocks -= 1,
             _ => (),
         }
         assert!(self.groups >= -1);
@@ -365,9 +373,8 @@ impl Preprocessor {
     -> Result<(), Token> {
         let mut pp = Preprocessor::new();
         for tok in Tokenizer::new(src.chars()) {
-            assert!(tok.lexeme.is_some());
             try!(pp.balance(tok));
-            match (pp.expect, pp.blocks, pp.groups, tok.lexeme.unwrap()) {
+            match (pp.expect, pp.blocks, pp.groups, tok.lexeme) {
                 (Code, 0, _, Name(0)) => (),
                 (Code, 0, _, Name(1)) => {
                     pp.object = Some(tok);
