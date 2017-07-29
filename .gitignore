@@ -1,1 +1,23 @@
+# build system
+
+autom4te.cache/
+build-aux/
+m4/
+
+*.tar.gz
+
+Makefile
+Makefile.in
+aclocal.m4
+config.log
+config.status
+configure
+
+# test suite
+
+*.log
+*.trs
+
+# bin
+
 vclpp
