@@ -16,7 +16,7 @@
 
 bin_SCRIPTS = vclpp
 
-vclpp: src/vclpp.rs
+vclpp: src/vclpp.rs src/tok.rs
 	$(RUSTC) -g $<
 
 AM_TESTS_ENVIRONMENT = \
@@ -32,4 +32,8 @@ TESTS = \
 doc_DATA = LICENSE
 
 CLEANFILES = vclpp
-EXTRA_DIST = vclpp.rs $(TESTS)
+EXTRA_DIST = \
+	LICENSE \
+	src/vclpp.rs \
+	src/tok.rs \
+	$(TESTS)
