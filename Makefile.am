@@ -16,7 +16,7 @@
 
 bin_SCRIPTS = vclpp
 
-vclpp: vclpp.rs
+vclpp: src/vclpp.rs
 	$(RUSTC) -g $<
 
 AM_TESTS_ENVIRONMENT = \

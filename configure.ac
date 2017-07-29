@@ -23,7 +23,7 @@ AC_INIT([vclpp],
 AC_COPYRIGHT([Copyright (C) 2017  Dridi Boukelmoune])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
-AC_CONFIG_SRCDIR([vclpp.rs])
+AC_CONFIG_SRCDIR([src/vclpp.rs])
 
 AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign parallel-tests])
 AC_CHECK_PROGS([RUSTC], [rustc])
