@@ -217,8 +217,7 @@ impl<'a> Tokenizer<'a> {
             (Some(CxxComment), _, _) => (Some(CxxComment), NeedsMore),
 
             (_, _, _) => {
-                panic!("{:?}, '{}', '{}'",
-                    self.lexeme, self.previous, c)
+                panic!("{:?}, '{}', '{}'", self.lexeme, self.previous, c)
             }
         }
     }
