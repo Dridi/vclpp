@@ -26,7 +26,7 @@ AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_SRCDIR([src/vclpp.rs])
 
 AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign parallel-tests])
-AC_CHECK_PROGS([RUSTC], [rustc])
+RUST_PREREQ([1.19])
 VARNISH_PREREQ([5.1.3])
 
 AC_ARG_WITH([kcov],

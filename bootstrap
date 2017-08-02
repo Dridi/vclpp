@@ -12,7 +12,7 @@ cd "$ROOT_DIR"
 mkdir -p m4
 mkdir -p build-aux
 
-aclocal
+aclocal -I .
 automake --add-missing --copy --foreign
 autoconf
 
