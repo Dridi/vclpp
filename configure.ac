@@ -27,7 +27,7 @@ AC_CONFIG_SRCDIR([src/vclpp.rs])
 
 AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign parallel-tests])
 AC_CHECK_PROGS([RUSTC], [rustc])
-VARNISH_PREREQ([5.1.2])
+VARNISH_PREREQ([5.1.3])
 
 AC_ARG_WITH([kcov],
 	[AS_HELP_STRING([--with-kcov], [use kcov (default is no)])],
