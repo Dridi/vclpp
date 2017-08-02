@@ -17,8 +17,13 @@
 doc_DATA = LICENSE
 
 bin_SCRIPTS = src/vclpp
+noinst_SCRIPTS = src/vcltok
 
 src/vclpp: src/vclpp.rs src/tok.rs
+	@mkdir -p src/
+	$(RUSTC) -g -o $@ $<
+
+src/vcltok: src/vcltok.rs src/tok.rs
 	@mkdir -p src/
 	$(RUSTC) -g -o $@ $<
 
@@ -30,6 +35,7 @@ TEST_EXTENSIONS = .vtc
 VTC_LOG_COMPILER = varnishtest -v
 
 TESTS = \
+	tests/00-tokenization.vtc \
 	tests/01-hello-world.vtc \
 	tests/02-empty-object.vtc
 
@@ -46,9 +52,13 @@ kcov:
 clean-local:
 	rm -rf kcov/
 
-CLEANFILES = src/vclpp
+CLEANFILES = \
+	src/vclpp \
+	src/vcltok
+
 EXTRA_DIST = \
 	LICENSE \
 	src/vclpp.rs \
+	src/vcltok.rs \
 	src/tok.rs \
 	$(TESTS)

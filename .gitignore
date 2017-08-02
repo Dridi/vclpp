@@ -27,3 +27,4 @@ kcov-wrapper.sh
 # bin
 
 vclpp
+vcltok

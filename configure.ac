@@ -45,6 +45,7 @@ AC_CONFIG_FILES([
 AC_OUTPUT
 
 ln -f -s kcov-wrapper.sh vclpp
+ln -f -s kcov-wrapper.sh vcltok
 chmod +x kcov-wrapper.sh
 
 AS_ECHO("

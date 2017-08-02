@@ -1,0 +1,96 @@
+# vclpp
+# Copyright (C) 2017  Dridi Boukelmoune <dridi.boukelmoune@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+varnishtest "tokenization"
+
+# Attempt at coverage of the happy path
+
+shell {
+set -e
+
+vcltok >tokens.txt <<EOF
+#!/usr/sbin/varnishd -C
+vcl ~ nice;
+
+but "the tokenizer" {
+	/* doesn't need valid VCL */
+}
+
+only valid(-ish) syntax,
+
+// so this snippet
+
+is = here 4 testing purposes && only
+
+{"The idea is to try all branches
+with"} +/- legit.tokens
+
+if (*it <.makes_no_sense ||>42.0) then pass!
+EOF
+
+! grep 'bad token:' tokens.txt
+
+awk '{print $3}' tokens.txt | sort | uniq
+}
+
+# Detect incomplete tokens
+
+shell {
+set -e
+
+vcltok >tokens.txt <<EOF
+Put some seemingly valid tokens,
+and then /* start a C comment
+EOF
+
+grep -q 'bad token: incomplete VCL' tokens.txt
+}
+
+shell {
+set -e
+
+vcltok >tokens.txt <<EOF
+Put some seemingly valid tokens,
+and then {" start a block string }
+EOF
+
+grep -q 'bad token: incomplete VCL' tokens.txt
+}
+
+# Play some guitar
+
+shell {
+set -e
+
+vcltok >tokens.txt <<EOF
+Put some seemingly valid tokens,
+and then " break a string
+EOF
+
+grep -q 'bad token: invalid string' tokens.txt
+}
+
+# Screw the syntax
+
+shell {
+set -e
+
+vcltok >tokens.txt <<EOF
+vcl [4.0];
+EOF
+
+grep -q 'bad token: unexpected character' tokens.txt
+}
