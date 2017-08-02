@@ -14,13 +14,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-bin_SCRIPTS = vclpp
+bin_SCRIPTS = src/vclpp
 
-vclpp: src/vclpp.rs src/tok.rs
-	$(RUSTC) -g $<
+src/vclpp: src/vclpp.rs src/tok.rs
+	@mkdir -p src/
+	$(RUSTC) -g -o $@ $<
 
 AM_TESTS_ENVIRONMENT = \
-	PATH="$(VARNISH_TEST_PATH):$(abs_builddir):$(PATH)" \
+	PATH="$(VARNISH_TEST_PATH):$(VCLPP_PATH):$(PATH)" \
 	LD_LIBRARY_PATH="$(VARNISH_LIBRARY_PATH)"
 TEST_EXTENSIONS = .vtc
 VTC_LOG_COMPILER = varnishtest -v
@@ -31,7 +32,7 @@ TESTS = \
 
 doc_DATA = LICENSE
 
-CLEANFILES = vclpp
+CLEANFILES = src/vclpp
 EXTRA_DIST = \
 	LICENSE \
 	src/vclpp.rs \

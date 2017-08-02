@@ -28,6 +28,9 @@ AC_CONFIG_SRCDIR([src/vclpp.rs])
 AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign parallel-tests])
 AC_CHECK_PROGS([RUSTC], [rustc])
 VARNISH_PREREQ([5.1.2])
+
+AC_SUBST([VCLPP_PATH], ['$(abs_builddir)/src'])
+
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT
 
