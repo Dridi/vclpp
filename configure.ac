@@ -29,10 +29,23 @@ AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign parallel-tests])
 AC_CHECK_PROGS([RUSTC], [rustc])
 VARNISH_PREREQ([5.1.2])
 
-AC_SUBST([VCLPP_PATH], ['$(abs_builddir)/src'])
+AC_ARG_WITH([kcov],
+	[AS_HELP_STRING([--with-kcov], [use kcov (default is no)])],
+	[use_kcov=$withval],
+	[use_kcov=no])
 
-AC_CONFIG_FILES([Makefile])
+AS_IF([test "$use_kcov" != no], [AC_CHECK_PROGS([KCOV], [kcov])])
+
+AC_SUBST([VCLPP_PATH], ['$(abs_builddir)'])
+
+AC_CONFIG_FILES([
+	Makefile
+	kcov-wrapper.sh
+])
 AC_OUTPUT
+
+ln -f -s kcov-wrapper.sh vclpp
+chmod +x kcov-wrapper.sh
 
 AS_ECHO("
 	==== $PACKAGE_STRING ====

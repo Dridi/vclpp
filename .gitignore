@@ -18,6 +18,12 @@ configure
 *.log
 *.trs
 
+# coverage
+
+kcov/
+
+kcov-wrapper.sh
+
 # bin
 
 vclpp

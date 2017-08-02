@@ -14,6 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+doc_DATA = LICENSE
+
 bin_SCRIPTS = src/vclpp
 
 src/vclpp: src/vclpp.rs src/tok.rs
@@ -21,6 +23,7 @@ src/vclpp: src/vclpp.rs src/tok.rs
 	$(RUSTC) -g -o $@ $<
 
 AM_TESTS_ENVIRONMENT = \
+	KCOV="$(KCOV)" \
 	PATH="$(VARNISH_TEST_PATH):$(VCLPP_PATH):$(PATH)" \
 	LD_LIBRARY_PATH="$(VARNISH_LIBRARY_PATH)"
 TEST_EXTENSIONS = .vtc
@@ -30,7 +33,18 @@ TESTS = \
 	tests/01-hello-world.vtc \
 	tests/02-empty-object.vtc
 
-doc_DATA = LICENSE
+check: all
+
+kcov:
+	rm -rf kcov/
+	$(MAKE) $(AM_MAKEFLAGS) check
+	$(KCOV) --merge kcov/ kcov/vtc/*/*/
+	@echo "results: $(abs_builddir)/kcov/index.html"
+
+.PHONY: kcov
+
+clean-local:
+	rm -rf kcov/
 
 CLEANFILES = src/vclpp
 EXTRA_DIST = \

@@ -1,0 +1,17 @@
+#!/bin/sh
+
+set -e
+set -u
+
+prog=$(basename $0)
+vdir=$(basename $PWD)
+kdir="@abs_builddir@/kcov/vtc/$vdir/"
+KCOV=${KCOV:-}
+
+if [ -n "$KCOV" ]
+then
+	mkdir -p "$kdir"
+	"$KCOV" "$kdir" "@abs_builddir@/src/$prog" "$@"
+else
+	"@abs_builddir@/src/$prog" "$@"
+fi
