@@ -148,7 +148,7 @@ impl Preprocessor {
                         return Err(tok);
                     }
                     if pp.field.is_some() {
-                        write!(out, ", ");
+                        write!(out, ",");
                     }
                     write!(out, "\n");
                     pp.field = pp.symbol;

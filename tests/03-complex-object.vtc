@@ -1,0 +1,60 @@
+# vclpp
+# Copyright (C) 2017  Dridi Boukelmoune <dridi.boukelmoune@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+varnishtest "complex object"
+
+# An object with both fields and methods (comments are lost)
+
+shell {
+vclpp >actual.vcl <<EOF
+querystring.filter qf {
+	.match = name;
+	.sort = true;
+	.add_string("_"); # a timestamp used to bypass caches
+	.add_glob("utm_*"); # google analytics parameters
+	.add_regex("sess[0-9]+"); # anti-CSRF token
+}
+EOF
+}
+
+shell {
+vclpp >expected.vcl <<EOF
+sub vcl_init {
+	new qf = querystring.filter(
+		match = name,
+		sort = true);
+	qf.add_string("_");
+	qf.add_glob("utm_*");
+	qf.add_regex("sess[0-9]+");
+}
+EOF
+}
+
+shell {diff -u expected.vcl actual.vcl}
+
+# Can't have fields after methods
+
+shell {
+! vclpp <<EOF
+querystring.filter qf {
+	.match = name;
+	.add_string("_");
+	.add_glob("utm_*");
+	.add_regex("sess[0-9]+");
+	.sort = true;
+}
+EOF
+}

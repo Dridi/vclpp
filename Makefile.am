@@ -37,7 +37,8 @@ VTC_LOG_COMPILER = varnishtest -v
 TESTS = \
 	tests/00-tokenization.vtc \
 	tests/01-hello-world.vtc \
-	tests/02-empty-object.vtc
+	tests/02-empty-object.vtc \
+	tests/03-complex-object.vtc
 
 check: all
 
