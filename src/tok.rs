@@ -188,6 +188,7 @@ impl<'a> Tokenizer<'a> {
             (Some(Name(d)), _, '_') |
             (Some(Name(d)), _, '-') => (Some(Name(d)), NeedsMore),
             (Some(Name(d)), _, '.') => (Some(Name(d+1)), NeedsMore),
+            (Some(Name(_)), '.', _) => (Some(Bad("invalid name")), Done),
             (Some(Name(d)), _, _) => (Some(Name(d)), PreviousReady),
 
             (Some(Integer), _, '.') => (Some(Number), NeedsMore),

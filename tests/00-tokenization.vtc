@@ -94,3 +94,27 @@ EOF
 
 grep -q 'bad token: unexpected character' tokens.txt
 }
+
+# Double dot
+
+shell {
+set -e
+
+vcltok >tokens.txt <<EOF
+set req..url = "/dev/null";
+EOF
+
+grep -q 'bad token: invalid name' tokens.txt
+}
+
+# Trailing dot
+
+shell {
+set -e
+
+vcltok >tokens.txt <<EOF
+set req.http. = "no-cache";
+EOF
+
+grep -q 'bad token: invalid name' tokens.txt
+}
