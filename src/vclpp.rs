@@ -171,7 +171,7 @@ impl Preprocessor {
                 (SemiColon, _, 0, Delim(';')) => pp.expect = Dot,
                 (SemiColon, _, _, _) => (),
 
-                (_, _, _, _) => panic!(),
+                (_, _, _, _) => unreachable!(),
             }
             match pp.expect {
                 Code => write!(out, "{}", &src[&tok]),

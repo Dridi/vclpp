@@ -218,7 +218,7 @@ impl<'a> Tokenizer<'a> {
             (Some(CxxComment), _, _) => (Some(CxxComment), NeedsMore),
 
             (_, _, _) => {
-                panic!("{:?}, '{}', '{}'", self.lexeme, self.previous, c)
+                unreachable!("{:?}, '{}', '{}'", self.lexeme, self.previous, c)
             }
         }
     }
@@ -239,14 +239,14 @@ impl<'a> Tokenizer<'a> {
                 }
             },
             HasChar => self.previous,
-            _ => panic!()
+            _ => unreachable!()
         };
 
         let (lexeme, handling) = self.next_state(c);
 
         match handling {
             PreviousReady => (),
-            HasChar => panic!(),
+            HasChar => unreachable!(),
             _ => {
                 self.end.consume(c);
             }
@@ -292,7 +292,7 @@ impl<'a> Iterator for Tokenizer<'a> {
 
         match self.handling {
             CurrentReady | PreviousReady => Some(self.to_token()),
-            _ => panic!()
+            _ => unreachable!()
         }
     }
 }
