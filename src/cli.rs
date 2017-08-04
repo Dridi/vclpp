@@ -18,6 +18,7 @@
 
 use std::cmp::Ordering::Equal;
 use std::env;
+use std::fmt::Display;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::Read;
@@ -26,6 +27,7 @@ use std::io::Stdout;
 use std::io::Write;
 use std::io::stdin;
 use std::io::stdout;
+use std::process::exit;
 
 use self::Output::*;
 
@@ -55,24 +57,30 @@ impl Write for Output {
     }
 }
 
+fn eprint_usage(arg0: String) -> ! {
+    eprintln!("VCL preprocessor
+
+Usage:
+    {} [PVCL] [VCL]
+", arg0);
+    exit(1);
+}
+
 pub fn parse_args() -> Result<(String, Output)> {
     let mut args = env::args();
 
-    if args.len() > 3 {
-        unimplemented!();
-    }
+    let arg0 = args.next().unwrap();
 
-    args.next(); // skip $0
+    if args.len() > 2 {
+        eprint_usage(arg0);
+    }
 
     let mut src = String::new();
 
     try!(match args.next() {
         Some(path) => match path.cmp(&"-".to_string()) {
             Equal => stdin().read_to_string(&mut src),
-            _ => match File::open(path) {
-                Ok(mut f) => f.read_to_string(&mut src),
-                Err(e) => return Err(e),
-            },
+            _ => try!(File::open(path)).read_to_string(&mut src),
         },
         None => stdin().read_to_string(&mut src),
     });
@@ -80,13 +88,15 @@ pub fn parse_args() -> Result<(String, Output)> {
     let out = match args.next() {
         Some(path) => match path.cmp(&"-".to_string()) {
             Equal => Output::def(),
-            _ => match File::create(path) {
-                Ok(f) => Output::arg(f),
-                Err(e) => return Err(e),
-            },
+            _ => Output::arg(try!(File::create(path))),
         },
         None => Output::def(),
     };
 
     Ok((src, out))
+}
+
+pub fn fail<T: Display>(s: T) -> ! {
+    eprintln!("Error: {}", s);
+    exit(1);
 }

@@ -19,8 +19,8 @@
 mod cli;
 mod tok;
 
+use std::io::Result;
 use std::io::Write;
-use std::process::exit;
 use std::vec::Vec;
 
 use tok::Lexeme::*;
@@ -35,28 +35,35 @@ fn write_escaped<W: Write>(out: &mut W, s: &str) {
             '\t' => vec!('\\' as u8, 't' as u8),
             _ => vec!(b)
         }
-    }).map(|v| out.write(v.as_ref()))
-        .inspect(|r| if r.is_err() { exit(1); })
-        .count();
+    }).flat_map(|v| out.write(v.as_ref()).err())
+      .take(1)
+      .inspect(|e| cli::fail(e))
+      .count();
+}
+
+fn decompose() -> Result<()> {
+    let (src, mut out) = try!(cli::parse_args());
+
+    for tok in Tokenizer::new(src.chars()) {
+        try!(write!(out, "[{}...{}] ", tok.start, tok.end));
+        match tok.lexeme {
+            Bad(s) => {
+                try!(write!(out, "bad token: {}\n", s));
+            }
+            _ => {
+                try!(write!(out, "token: {:?} '", tok.lexeme));
+                write_escaped(&mut out, &src[&tok]);
+                try!(write!(out, "'\n"));
+            }
+        }
+    }
+
+    Ok(())
 }
 
 fn main() {
-    let (src, mut out) = match cli::parse_args() {
-        Ok((s, o)) => (s, o),
-        Err(e) => panic!("{}", e),
-    };
-
-    for tok in Tokenizer::new(src.chars()) {
-        write!(out, "[{}...{}] ", tok.start, tok.end);
-        match tok.lexeme {
-            Bad(s) => {
-                write!(out, "bad token: {}\n", s);
-            }
-            _ => {
-                write!(out, "token: {:?} '", tok.lexeme);
-                write_escaped(&mut out, &src[&tok]);
-                write!(out, "'\n");
-            }
-        }
+    match decompose() {
+        Err(e) => cli::fail(e),
+        _ => (),
     }
 }
