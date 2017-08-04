@@ -31,11 +31,11 @@ vcltok_SRC = \
 
 src/vclpp: $(vclpp_SRC)
 	@mkdir -p src/
-	$(RUSTC) -g -o $@ $<
+	$(RUSTC) -g -O -o $@ $<
 
 src/vcltok: $(vcltok_SRC)
 	@mkdir -p src/
-	$(RUSTC) -g -o $@ $<
+	$(RUSTC) -g -O -o $@ $<
 
 AM_TESTS_ENVIRONMENT = \
 	KCOV="$(KCOV)" \
