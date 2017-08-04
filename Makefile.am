@@ -19,11 +19,21 @@ doc_DATA = LICENSE
 bin_SCRIPTS = src/vclpp
 noinst_SCRIPTS = src/vcltok
 
-src/vclpp: src/vclpp.rs src/cli.rs src/tok.rs
+vclpp_SRC = \
+	src/vclpp.rs \
+	src/cli.rs \
+	src/tok.rs
+
+vcltok_SRC = \
+	src/vcltok.rs \
+	src/cli.rs \
+	src/tok.rs
+
+src/vclpp: $(vclpp_SRC)
 	@mkdir -p src/
 	$(RUSTC) -g -o $@ $<
 
-src/vcltok: src/vcltok.rs src/cli.rs src/tok.rs
+src/vcltok: $(vcltok_SRC)
 	@mkdir -p src/
 	$(RUSTC) -g -o $@ $<
 
