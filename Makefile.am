@@ -19,11 +19,11 @@ doc_DATA = LICENSE
 bin_SCRIPTS = src/vclpp
 noinst_SCRIPTS = src/vcltok
 
-src/vclpp: src/vclpp.rs src/tok.rs
+src/vclpp: src/vclpp.rs src/cli.rs src/tok.rs
 	@mkdir -p src/
 	$(RUSTC) -g -o $@ $<
 
-src/vcltok: src/vcltok.rs src/tok.rs
+src/vcltok: src/vcltok.rs src/cli.rs src/tok.rs
 	@mkdir -p src/
 	$(RUSTC) -g -o $@ $<
 
@@ -38,7 +38,8 @@ TESTS = \
 	tests/00-tokenization.vtc \
 	tests/01-hello-world.vtc \
 	tests/02-empty-object.vtc \
-	tests/03-complex-object.vtc
+	tests/03-complex-object.vtc \
+	tests/04-command-line.vtc
 
 check: all
 
@@ -61,5 +62,6 @@ EXTRA_DIST = \
 	LICENSE \
 	src/vclpp.rs \
 	src/vcltok.rs \
+	src/cli.rs \
 	src/tok.rs \
 	$(TESTS)

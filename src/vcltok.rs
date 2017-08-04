@@ -16,16 +16,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use std::io::BufWriter;
-use std::io::Write;
-use std::io::stderr;
-use std::io::stdin;
-use std::io::stdout;
-use std::process::exit;
-use std::string::String;
-use std::vec::Vec;
-
+mod cli;
 mod tok;
+
+use std::io::Write;
+use std::process::exit;
+use std::vec::Vec;
 
 use tok::Lexeme::*;
 use tok::Tokenizer;
@@ -45,19 +41,12 @@ fn write_escaped<W: Write>(out: &mut W, s: &str) {
 }
 
 fn main() {
-    let mut buf = String::new();
+    let (src, mut out) = match cli::parse_args() {
+        Ok((s, o)) => (s, o),
+        Err(e) => panic!("{}", e),
+    };
 
-    loop {
-        match stdin().read_line(&mut buf) {
-            Ok(0) => break,
-            Ok(_) => continue,
-            Err(e) => panic!("error: {}", e)
-        }
-    }
-
-    let mut out = BufWriter::new(stdout());
-
-    for tok in Tokenizer::new(buf.chars()) {
+    for tok in Tokenizer::new(src.chars()) {
         write!(out, "[{}...{}] ", tok.start, tok.end);
         match tok.lexeme {
             Bad(s) => {
@@ -65,7 +54,7 @@ fn main() {
             }
             _ => {
                 write!(out, "token: {:?} '", tok.lexeme);
-                write_escaped(&mut out, &buf[&tok]);
+                write_escaped(&mut out, &src[&tok]);
                 write!(out, "'\n");
             }
         }

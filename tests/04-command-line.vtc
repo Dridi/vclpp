@@ -1,0 +1,79 @@
+# vclpp
+# Copyright (C) 2017  Dridi Boukelmoune <dridi.boukelmoune@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+varnishtest "command line"
+
+# Create a common source that shouldn't change when preprocessed
+
+shell {
+cat >source.pvcl <<EOF
+vcl 4.0;
+EOF
+}
+
+# Read from a file
+
+shell {
+set -e
+
+vclpp source.pvcl >file.vcl
+
+diff -u source.pvcl file.vcl
+}
+
+# Read from a file, write to stdout
+
+shell {
+set -e
+
+vclpp source.pvcl - >file-stdout.vcl
+
+diff -u source.pvcl file-stdout.vcl
+}
+
+# Read from stdin, write to a file
+
+shell {
+set -e
+
+vclpp - stdin-file.vcl <source.pvcl
+
+diff -u source.pvcl stdin-file.vcl
+}
+
+# Read from a file, write to a file
+
+shell {
+set -e
+
+vclpp source.pvcl file-file.vcl
+
+diff -u source.pvcl file-file.vcl
+}
+
+# Read from stdin, write to stdout
+
+shell {
+set -e
+
+vclpp - - <source.pvcl >stdin-stdout.vcl
+
+diff -u source.pvcl stdin-stdout.vcl
+}
+
+# Too many arguments
+
+shell {! vclpp source.pvcl target.vcl extra.junk}

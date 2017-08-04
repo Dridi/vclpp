@@ -16,13 +16,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use std::io::BufWriter;
-use std::io::Write;
-use std::io::stdin;
-use std::io::stdout;
-use std::string::String;
-
+mod cli;
 mod tok;
+
+use std::io::Write;
 
 use tok::Lexeme::*;
 use tok::Token;
@@ -228,17 +225,12 @@ impl Preprocessor {
 /* ------------------------------------------------------------------- */
 
 fn main() {
-    let mut buf = String::new();
+    let (src, out) = match cli::parse_args() {
+        Ok((s, o)) => (s, o),
+        Err(e) => panic!("{}", e),
+    };
 
-    loop {
-        match stdin().read_line(&mut buf) {
-            Ok(0) => break,
-            Ok(_) => continue,
-            Err(e) => panic!("error: {}", e)
-        }
-    }
-
-    match Preprocessor::exec(&buf, BufWriter::new(stdout())) {
+    match Preprocessor::exec(&src, out) {
         Err(tok) => panic!("{:?}", tok.lexeme),
         _ => ()
     }
