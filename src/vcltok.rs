@@ -30,7 +30,7 @@ mod tok;
 use tok::Lexeme::*;
 use tok::Tokenizer;
 
-fn write_escaped<W: Write>(out: &mut BufWriter<W>, s: &str) {
+fn write_escaped<W: Write>(out: &mut W, s: &str) {
     s.bytes().map(|b| -> Vec<u8> {
         match b as char {
             '\\' => vec!('\\' as u8, '\\' as u8),

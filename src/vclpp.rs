@@ -96,7 +96,7 @@ impl Preprocessor {
         }
     }
 
-    fn exec<'a, W: Write>(src: &'a String, mut out: BufWriter<W>)
+    fn exec<'a, W: Write>(src: &'a String, mut out: W)
     -> Result<(), Token> {
         let mut pp = Preprocessor::new();
         for tok in Tokenizer::new(src.chars()) {
