@@ -45,11 +45,11 @@ TEST_EXTENSIONS = .vtc
 VTC_LOG_COMPILER = varnishtest -v
 
 TESTS = \
-	tests/00-tokenization.vtc \
-	tests/01-hello-world.vtc \
-	tests/02-empty-object.vtc \
-	tests/03-complex-object.vtc \
-	tests/04-command-line.vtc
+	vtc/00-tokenization.vtc \
+	vtc/01-hello-world.vtc \
+	vtc/02-empty-object.vtc \
+	vtc/03-complex-object.vtc \
+	vtc/04-command-line.vtc
 
 check: all
 
