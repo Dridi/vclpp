@@ -61,8 +61,9 @@ fn eprint_usage(arg0: String) -> ! {
     eprintln!("VCL preprocessor
 
 Usage:
-    {} [PVCL] [VCL]
-", arg0);
+    {} [PVCL [VCL]]
+
+Documentation available locally via `man vclpp`", arg0);
     exit(1);
 }
 

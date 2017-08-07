@@ -37,6 +37,18 @@ src/vcltok: $(vcltok_SRC)
 	@mkdir -p src/
 	$(RUSTC) $(RUSTC_FLAGS) -o $@ $(srcdir)/src/vcltok.rs
 
+dist_man_MANS = \
+	man/pvcl.7 \
+	man/vclpp.1
+
+SUFFIXES = .1.rst .7.rst .1 .7
+
+.1.rst.1:
+	$(RST2MAN) --strict --strip-comments $< $@
+
+.7.rst.7:
+	$(RST2MAN) --strict --strip-comments $< $@
+
 AM_TESTS_ENVIRONMENT = \
 	KCOV="$(KCOV)" \
 	PATH="$(VARNISH_TEST_PATH):$(VCLPP_PATH):$(PATH)" \

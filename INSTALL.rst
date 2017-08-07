@@ -43,6 +43,7 @@ Additional dependencies:
 
 - autoconf >= 2.68
 - automake >= 1.12
+- rst2man
 
 To target a specific version of Varnish, aclocal needs to be configured in
 addition to pkg-config. Instead of the command line, it can be added to the

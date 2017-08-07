@@ -32,6 +32,9 @@ AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign parallel-tests])
 RUST_PREREQ([1.19])
 VARNISH_PREREQ([5.1.3])
 
+AC_CHECK_PROGS([RST2MAN], [rst2man rst2man.py])
+AS_IF([test -z "$RST2MAN"], [RST2MAN=":"])
+
 AC_ARG_WITH([kcov],
 	[AS_HELP_STRING([--with-kcov], [use kcov (default is no)])],
 	[use_kcov=$withval],

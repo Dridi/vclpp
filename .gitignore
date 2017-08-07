@@ -28,3 +28,8 @@ kcov-wrapper.sh
 
 vclpp
 vcltok
+
+# man
+
+*.1
+*.7
