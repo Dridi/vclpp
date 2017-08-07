@@ -34,4 +34,7 @@ AC_DEFUN([RUST_PREREQ], [
 	AS_IF([test "$RUSTC_ENOUGH" = no], [
 		AC_MSG_ERROR([Rust version $1 or higher is required.])
 	])
+
+	AS_IF([test -z "$RUSTC_FLAGS"], [RUSTC_FLAGS="-g -O"])
+	AC_SUBST([RUSTC_FLAGS])
 ])

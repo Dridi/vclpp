@@ -31,11 +31,11 @@ vcltok_SRC = \
 
 src/vclpp: $(vclpp_SRC)
 	@mkdir -p src/
-	$(RUSTC) -g -O -o $@ $<
+	$(RUSTC) $(RUSTC_FLAGS) -o $@ $(srcdir)/src/vclpp.rs
 
 src/vcltok: $(vcltok_SRC)
 	@mkdir -p src/
-	$(RUSTC) -g -O -o $@ $<
+	$(RUSTC) $(RUSTC_FLAGS) -o $@ $(srcdir)/src/vcltok.rs
 
 AM_TESTS_ENVIRONMENT = \
 	KCOV="$(KCOV)" \
@@ -55,7 +55,8 @@ check: all
 
 kcov:
 	rm -rf kcov/
-	$(MAKE) $(AM_MAKEFLAGS) check
+	$(MAKE) $(AM_MAKEFLAGS) clean
+	$(MAKE) $(AM_MAKEFLAGS) RUSTC_FLAGS=-g check
 	$(KCOV) --merge kcov/ kcov/vtc/*/*/
 	@echo "results: $(abs_builddir)/kcov/index.html"
 
