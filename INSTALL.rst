@@ -25,7 +25,10 @@ If `vclpp` should be installed installed alongside Varnish, pick a prefix::
 
   ./configure --prefix=/opt/varnish PKG_CONFIG_PATH=/opt/varnish/lib/pkgconfig
 
-The default prefix is ``/usr/local``.
+The default prefix is ``/usr/local``, and to learn about other configuration
+options you can run ``./configure --help``.
+
+Once installed, ``vclpp`` has no runtime dependencies.
 
 Building from git
 -----------------

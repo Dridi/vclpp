@@ -22,6 +22,9 @@
 AC_DEFUN([RUST_PREREQ], [
 	AC_REQUIRE([AC_PROG_AWK])
 
+	AC_ARG_VAR([RUSTC], [Rust compiler command])
+	AC_ARG_VAR([RUSTC_FLAGS], [Rust compiler flags])
+
 	AC_CHECK_PROGS([RUSTC], [rustc])
 	AS_IF([test -z "$RUSTC"], [AC_MSG_ERROR([Rust compiler required.])])
 
@@ -36,5 +39,4 @@ AC_DEFUN([RUST_PREREQ], [
 	])
 
 	AS_IF([test -z "$RUSTC_FLAGS"], [RUSTC_FLAGS="-g -O"])
-	AC_SUBST([RUSTC_FLAGS])
 ])
