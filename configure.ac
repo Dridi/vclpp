@@ -25,6 +25,9 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_SRCDIR([src/vclpp.rs])
 
+# Don't inherit Varnish's prefix by default
+AS_IF([test "$prefix" = NONE], [prefix=/usr/local])
+
 AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign parallel-tests])
 RUST_PREREQ([1.19])
 VARNISH_PREREQ([5.1.3])
