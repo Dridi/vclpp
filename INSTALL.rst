@@ -8,7 +8,7 @@ suite.
 Dependencies:
 
 - Rust >= 1.19
-- Varnish >= 5.1.3
+- Varnish >= 5.1.3 (optional)
 - pkg-config
 
 It relies by default on system-wide installations of those tools, but can be
@@ -26,9 +26,10 @@ If `vclpp` should be installed installed alongside Varnish, pick a prefix::
   ./configure --prefix=/opt/varnish PKG_CONFIG_PATH=/opt/varnish/lib/pkgconfig
 
 The default prefix is ``/usr/local``, and to learn about other configuration
-options you can run ``./configure --help``.
+options you can run ``./configure --help``. If Varnish is not available or not
+recent enough, the test suite can be skipped with ``--without-tests``.
 
-Once installed, ``vclpp`` has no runtime dependencies.
+Once installed, ``vclpp`` has virtually no runtime dependencies.
 
 Building from git
 -----------------

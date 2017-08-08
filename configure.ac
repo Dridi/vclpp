@@ -30,7 +30,14 @@ AS_IF([test "$prefix" = NONE], [prefix=/usr/local])
 
 AM_INIT_AUTOMAKE([1.12 -Wall -Werror foreign parallel-tests])
 RUST_PREREQ([1.19])
-VARNISH_PREREQ([5.1.3])
+
+AC_ARG_WITH([tests],
+	[AS_HELP_STRING([--with-tests], [run tests (default is yes)])],
+	[with_tests=$withval],
+	[with_tests=yes])
+
+AS_IF([test "$with_tests" != no], [VARNISH_PREREQ([5.1.3])])
+AM_CONDITIONAL([WITH_TESTS], [test "$with_tests" != no])
 
 AC_ARG_VAR([RST2MAN], [rst2man command (optional)])
 AC_CHECK_PROGS([RST2MAN], [rst2man rst2man.py])

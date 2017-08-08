@@ -16,6 +16,8 @@
 
 ACLOCAL_AMFLAGS = -I .
 
+DISTCHECK_CONFIGURE_FLAGS = --with-tests
+
 doc_DATA = LICENSE
 
 bin_SCRIPTS = src/vclpp
@@ -58,12 +60,15 @@ AM_TESTS_ENVIRONMENT = \
 TEST_EXTENSIONS = .vtc
 VTC_LOG_COMPILER = varnishtest -v
 
-TESTS = \
+VTC_TESTS = \
 	vtc/00-tokenization.vtc \
 	vtc/01-hello-world.vtc \
 	vtc/02-empty-object.vtc \
 	vtc/03-complex-object.vtc \
 	vtc/04-command-line.vtc
+
+if WITH_TESTS
+TESTS = $(VTC_TESTS)
 
 check: all
 
@@ -78,6 +83,7 @@ kcov:
 
 clean-local:
 	rm -rf kcov/
+endif
 
 CLEANFILES = \
 	src/vclpp \
@@ -90,4 +96,4 @@ EXTRA_DIST = \
 	src/vcltok.rs \
 	src/cli.rs \
 	src/tok.rs \
-	$(TESTS)
+	$(VTC_TESTS)
