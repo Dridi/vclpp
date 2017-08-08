@@ -208,13 +208,13 @@ impl<'a> Tokenizer<'a> {
             (Some(BlockString), '"', '}') => (Some(BlockString), CurrentReady),
             (Some(BlockString), _, _) => (Some(BlockString), NeedsMore),
 
-            (Some(Comment), _, '\n') => (Some(Comment), PreviousReady),
+            (Some(Comment), _, '\n') => (Some(Comment), CurrentReady),
             (Some(Comment), _, _) => (Some(Comment), NeedsMore),
 
             (Some(CComment), '*', '/') => (Some(CComment), CurrentReady),
             (Some(CComment), _, _) => (Some(CComment), NeedsMore),
 
-            (Some(CxxComment), _, '\n') => (Some(CxxComment), PreviousReady),
+            (Some(CxxComment), _, '\n') => (Some(CxxComment), CurrentReady),
             (Some(CxxComment), _, _) => (Some(CxxComment), NeedsMore),
 
             (_, _, _) => {
