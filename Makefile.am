@@ -85,6 +85,7 @@ CLEANFILES = \
 
 EXTRA_DIST = \
 	LICENSE \
+	README.rst \
 	src/vclpp.rs \
 	src/vcltok.rs \
 	src/cli.rs \
