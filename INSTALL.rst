@@ -31,6 +31,27 @@ recent enough, the test suite can be skipped with ``--without-tests``.
 
 Once installed, ``vclpp`` has virtually no runtime dependencies.
 
+Building a release
+------------------
+
+Start by grabbing the latest release [1]_ and follow these steps::
+
+  # Get to the source tree
+  tar xf vclpp-${VERSION}.tar.gz
+  cd vclpp-${VERSION}
+
+  # Build and install
+  ./configure
+  make
+  sudo make install
+
+If your version of RPM is recent enough, you can also build a package directly
+from the release archive::
+
+  rpmbuild -tb vclpp-${VERSION}.tar.gz
+
+.. [1] https://github.com/dridi/vclpp/releases/latest
+
 Building from git
 -----------------
 

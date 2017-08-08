@@ -56,6 +56,7 @@ AC_SUBST([VCLPP_PATH], ['$(abs_builddir)'])
 AC_CONFIG_FILES([
 	Makefile
 	kcov-wrapper.sh
+	vclpp.spec
 ])
 AC_OUTPUT
 

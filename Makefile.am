@@ -96,4 +96,5 @@ EXTRA_DIST = \
 	src/vcltok.rs \
 	src/cli.rs \
 	src/tok.rs \
+	vclpp.spec \
 	$(VTC_TESTS)
