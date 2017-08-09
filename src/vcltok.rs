@@ -42,18 +42,18 @@ fn write_escaped<W: Write>(out: &mut W, s: &str) {
 }
 
 fn decompose() -> Result<()> {
-    let (src, mut out) = try!(cli::parse_args());
+    let (src, mut out) = cli::parse_args()?;
 
     for tok in Tokenizer::new(src.chars()) {
-        try!(write!(out, "[{}...{}] ", tok.start, tok.end));
+        write!(out, "[{}...{}] ", tok.start, tok.end)?;
         match tok.lexeme {
             Bad(s) => {
-                try!(write!(out, "bad token: {}\n", s));
+                write!(out, "bad token: {}\n", s)?;
             }
             _ => {
-                try!(write!(out, "token: {:?} '", tok.lexeme));
+                write!(out, "token: {:?} '", tok.lexeme)?;
                 write_escaped(&mut out, &src[&tok]);
-                try!(write!(out, "'\n"));
+                write!(out, "'\n")?;
             }
         }
     }

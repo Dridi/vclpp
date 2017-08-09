@@ -70,11 +70,11 @@ impl Preprocessor {
     }
 
     fn balance(&mut self, tok: Token) -> Result<(), Token> {
-        try!(match (tok.lexeme, self.groups) {
+        match (tok.lexeme, self.groups) {
             (OpeningBlock, 0) => Ok(()),
             (OpeningBlock, _) => Err(tok),
             (_, _) => Ok(()),
-        });
+        }?;
         match tok.lexeme {
             OpeningGroup => self.groups += 1,
             ClosingGroup => self.groups -= 1,
@@ -97,7 +97,7 @@ impl Preprocessor {
     -> Result<(), Token> {
         let mut pp = Preprocessor::new();
         for tok in Tokenizer::new(src.chars()) {
-            try!(pp.balance(tok));
+            pp.balance(tok)?;
             match (pp.expect, pp.blocks, pp.groups, tok.lexeme) {
                 (Code, 0, _, Name(0)) => (),
                 (Code, 0, _, Name(1)) => {
@@ -227,7 +227,7 @@ impl Preprocessor {
 fn main() {
     let (src, out) = match cli::parse_args() {
         Ok((s, o)) => (s, o),
-        Err(e) => panic!("{}", e),
+        Err(e) => cli::fail(e),
     };
 
     match Preprocessor::exec(&src, out) {

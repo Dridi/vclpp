@@ -78,18 +78,18 @@ pub fn parse_args() -> Result<(String, Output)> {
 
     let mut src = String::new();
 
-    try!(match args.next() {
+    match args.next() {
         Some(path) => match path.cmp(&"-".to_string()) {
-            Equal => stdin().read_to_string(&mut src),
-            _ => try!(File::open(path)).read_to_string(&mut src),
+            Equal => stdin().read_to_string(&mut src)?,
+            _ => File::open(path)?.read_to_string(&mut src)?,
         },
-        None => stdin().read_to_string(&mut src),
-    });
+        None => stdin().read_to_string(&mut src)?,
+    };
 
     let out = match args.next() {
         Some(path) => match path.cmp(&"-".to_string()) {
             Equal => Output::def(),
-            _ => Output::arg(try!(File::create(path))),
+            _ => Output::arg(File::create(path)?),
         },
         None => Output::def(),
     };
