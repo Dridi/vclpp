@@ -27,8 +27,8 @@ use self::Lexeme::*;
 
 #[derive(Clone, Copy)]
 pub struct Position {
-    line: usize,
-    column: usize,
+    pub line: usize,
+    pub column: usize,
     offset: usize,
 }
 

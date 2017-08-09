@@ -19,6 +19,7 @@
 mod cli;
 mod tok;
 
+use std::io::Error;
 use std::io::Write;
 
 use tok::Lexeme::*;
@@ -26,6 +27,20 @@ use tok::Token;
 use tok::Tokenizer;
 
 use Expected::*;
+use PvclError::*;
+
+/* ------------------------------------------------------------------- */
+
+type PvclResult = Result<(), PvclError>;
+
+enum PvclError {
+    SyntaxError(Token, &'static str),
+    IoError(Error),
+}
+
+impl From<Error> for PvclError {
+    fn from(e: Error) -> PvclError { IoError(e) }
+}
 
 /* ------------------------------------------------------------------- */
 
@@ -69,12 +84,14 @@ impl Preprocessor {
         }
     }
 
-    fn balance(&mut self, tok: Token) -> Result<(), Token> {
+    fn balance(&mut self, tok: Token) -> PvclResult {
         match (tok.lexeme, self.groups) {
-            (OpeningBlock, 0) => Ok(()),
-            (OpeningBlock, _) => Err(tok),
-            (_, _) => Ok(()),
-        }?;
+            (OpeningBlock, 0) => (),
+            (OpeningBlock, _) => Err(SyntaxError(tok,
+                "opening a block inside an expression"))?,
+            (_, _) => (),
+        };
+
         match tok.lexeme {
             OpeningGroup => self.groups += 1,
             ClosingGroup => self.groups -= 1,
@@ -82,29 +99,51 @@ impl Preprocessor {
             ClosingBlock => self.blocks -= 1,
             _ => (),
         }
+
         assert!(self.groups >= -1);
         assert!(self.blocks >= -1);
         match (self.groups, self.blocks) {
             (-1, _) |
-            (_, -1) => Err(tok),
-            (0, 0) => Ok(()),
-            (_, 0) => Err(tok),
-            (_, _) => Ok(()),
-        }
+            (_, -1) => Err(SyntaxError(tok, "unbalanced brackets"))?,
+            (0, 0) |
+            (_, _) => (),
+        };
+
+        Ok(())
     }
 
-    fn exec<'a, W: Write>(src: &'a String, mut out: W)
-    -> Result<(), Token> {
+    fn error(&self, tok: Token) -> PvclResult {
+        let msg = match self.expect {
+            Code |
+            EndOfField => unreachable!(),
+            Ident => "expected identifier",
+            Block => "expected '{'",
+            Dot => "expected '.' or '}'",
+            Member => "expected field or method",
+            FieldOrMethod => "expected '=' or '('",
+            Value => "expected value",
+            EndOfMethod |
+            SemiColon => "expected ';'",
+            Arguments => "expected arguments or ')'",
+        };
+        Err(SyntaxError(tok, msg))
+    }
+
+    fn exec<'a, W: Write>(src: &'a String, mut out: W) -> PvclResult {
         let mut pp = Preprocessor::new();
         for tok in Tokenizer::new(src.chars()) {
             pp.balance(tok)?;
             match (pp.expect, pp.blocks, pp.groups, tok.lexeme) {
+                (_, _, _, Bad(s)) => Err(SyntaxError(tok, s))?,
+
                 (Code, 0, _, Name(0)) => (),
                 (Code, 0, _, Name(1)) => {
                     pp.object = Some(tok);
                     pp.expect = Ident;
                 }
-                (Code, 0, _, Name(_)) => unimplemented!(),
+                (Code, 0, _, Name(_)) => {
+                    Err(SyntaxError(tok, "invalid identifier"))?
+                }
                 (Code, _, _, _) => (),
 
                 // NB. Abandon comments inside preprocessed code
@@ -114,15 +153,15 @@ impl Preprocessor {
 
                 (Ident, _, _, Name(0)) => pp.expect = Block,
                 (Ident, _, _, Blank) => continue,
-                (Ident, _, _, _) => unimplemented!(),
+                (Ident, _, _, _) => pp.error(tok)?,
 
                 (Block, _, _, OpeningBlock) => pp.expect = Dot,
                 (Block, _, _, Blank) => continue,
-                (Block, _, _, _) => unimplemented!(),
+                (Block, _, _, _) => pp.error(tok)?,
 
                 (Dot, _, _, ClosingBlock) => {
                     if pp.field.is_none() && pp.method.is_none() {
-                        write!(out, ");\n");
+                        write!(out, ");\n")?;
                     }
                     assert!(pp.groups == 0);
                     assert!(pp.blocks == 0);
@@ -130,37 +169,37 @@ impl Preprocessor {
                 }
                 (Dot, _, _, Prop) => pp.expect = Member,
                 (Dot, _, _, Blank) => continue,
-                (Dot, _, _, _) => unimplemented!(),
+                (Dot, _, _, _) => pp.error(tok)?,
 
                 (Member, _, _, Name(0)) => {
                     pp.symbol = Some(tok);
                     pp.expect = FieldOrMethod;
                 }
-                (Member, _, _, Name(_)) => unimplemented!(),
+                (Member, _, _, Name(_)) => pp.error(tok)?,
                 (Member, _, _, Blank) => continue,
-                (Member, _, _, _) => unimplemented!(),
+                (Member, _, _, _) => pp.error(tok)?,
 
                 (FieldOrMethod, _, _, Delim('=')) => {
                     if pp.method.is_some() {
-                        return Err(tok);
+                        return Err(SyntaxError(tok, "field after methods"));
                     }
                     if pp.field.is_some() {
-                        write!(out, ",");
+                        write!(out, ",")?;
                     }
-                    write!(out, "\n");
+                    write!(out, "\n")?;
                     pp.field = pp.symbol;
                     pp.expect = Value;
                 }
                 (FieldOrMethod, _, _, OpeningGroup) => {
                     assert!(pp.groups == 1);
                     if pp.method.is_none() {
-                        write!(out, ");\n");
+                        write!(out, ");\n")?;
                     }
                     pp.method = pp.symbol;
                     pp.expect = Arguments;
                 }
                 (FieldOrMethod, _, _, Blank) => continue,
-                (FieldOrMethod, _, _, _) => unimplemented!(),
+                (FieldOrMethod, _, _, _) => pp.error(tok)?,
 
                 (Value, _, 0, Delim(';')) => pp.expect = EndOfField,
                 (Value, _, _, _) => (),
@@ -174,12 +213,12 @@ impl Preprocessor {
                 (_, _, _, _) => unreachable!(),
             }
             match pp.expect {
-                Code => write!(out, "{}", &src[&tok]),
+                Code => write!(out, "{}", &src[&tok])?,
                 Block => {
                     assert!(pp.object.is_some());
                     pp.ident = Some(tok);
                     write!(out, "sub vcl_init {{\n\tnew {} = {}(",
-                        &src[&tok], &src[&pp.object.unwrap()])
+                        &src[&tok], &src[&pp.object.unwrap()])?;
                 }
                 Value => {
                     assert!(pp.field.is_some());
@@ -187,15 +226,12 @@ impl Preprocessor {
                         Some(_) => {
                             assert_eq!(&src[&tok], "=");
                             pp.symbol = None;
-                            write!(out, "\t\t{} =", &src[&pp.field.unwrap()])
+                            write!(out, "\t\t{} =", &src[&pp.field.unwrap()])?;
                         }
-                        None => write!(out, "{}", &src[&tok])
+                        None => write!(out, "{}", &src[&tok])?,
                     }
                 }
-                EndOfField => {
-                    pp.expect = Dot;
-                    Ok(())
-                }
+                EndOfField => pp.expect = Dot,
                 Arguments => {
                     assert!(pp.ident.is_some());
                     assert!(pp.method.is_some());
@@ -203,16 +239,16 @@ impl Preprocessor {
                         Some(_) => {
                             pp.symbol = None;
                             write!(out, "\t{}.{}(", &src[&pp.ident.unwrap()],
-                                &src[&pp.method.unwrap()])
+                                &src[&pp.method.unwrap()])?;
                         }
-                        None => write!(out, "{}", &src[&tok])
+                        None => write!(out, "{}", &src[&tok])?,
                     }
                 }
                 EndOfMethod => {
                     pp.expect = SemiColon;
-                    write!(out, ");\n")
+                    write!(out, ");\n")?;
                 }
-                _ => Ok(()),
+                _ => (),
             };
         }
         if pp.groups != 0 || pp.blocks != 0 {
@@ -231,7 +267,11 @@ fn main() {
     };
 
     match Preprocessor::exec(&src, out) {
-        Err(tok) => panic!("{:?}", tok.lexeme),
-        _ => ()
+        Err(SyntaxError(tok, msg)) => {
+            cli::fail(format!("{}, Line {}, Pos {}",
+                msg, tok.start.line, tok.start.column));
+        }
+        Err(IoError(e)) => cli::fail(e),
+        Ok(_) => ()
     }
 }
