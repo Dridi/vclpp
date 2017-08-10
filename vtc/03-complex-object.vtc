@@ -47,8 +47,8 @@ shell {diff -u expected.vcl actual.vcl}
 
 # Can't have fields after methods
 
-shell {
-! vclpp <<EOF
+shell -exit 1 {
+vclpp <<EOF
 querystring.filter qf {
 	.match = name;
 	.add_string("_");

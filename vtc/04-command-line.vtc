@@ -76,4 +76,4 @@ diff -u source.pvcl stdin-stdout.vcl
 
 # Too many arguments
 
-shell {! vclpp source.pvcl target.vcl extra.junk}
+shell -exit 1 {vclpp source.pvcl target.vcl extra.junk}
