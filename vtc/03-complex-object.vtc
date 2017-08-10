@@ -31,7 +31,7 @@ EOF
 }
 
 shell {
-vclpp >expected.vcl <<EOF
+cat >expected.vcl <<EOF
 sub vcl_init {
 	new qf = querystring.filter(
 		match = name,
@@ -45,16 +45,28 @@ EOF
 
 shell {diff -u expected.vcl actual.vcl}
 
-# Can't have fields after methods
+# Regular VCL should be output untouched
 
-shell -exit 1 {
-vclpp <<EOF
-querystring.filter qf {
-	.match = name;
-	.add_string("_");
-	.add_glob("utm_*");
-	.add_regex("sess[0-9]+");
-	.sort = true;
+shell {vclpp <expected.vcl >untouched.vcl}
+shell {diff -u expected.vcl untouched.vcl}
+
+# Methods with multiple arguments
+
+shell {
+vclpp >actual.vcl <<EOF
+vmod.obj name {
+	.method(multiple, (arguments == ok), and(untouched));
 }
 EOF
 }
+
+shell {
+cat >expected.vcl <<EOF
+sub vcl_init {
+	new name = vmod.obj();
+	name.method(multiple, (arguments == ok), and(untouched));
+}
+EOF
+}
+
+shell {diff -u expected.vcl actual.vcl}

@@ -65,7 +65,9 @@ VTC_TESTS = \
 	vtc/01-hello-world.vtc \
 	vtc/02-empty-object.vtc \
 	vtc/03-complex-object.vtc \
-	vtc/04-command-line.vtc
+	vtc/04-command-line.vtc \
+	vtc/05-syntax-errors.vtc
+
 
 if WITH_TESTS
 TESTS = $(VTC_TESTS)

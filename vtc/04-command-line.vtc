@@ -77,3 +77,7 @@ diff -u source.pvcl stdin-stdout.vcl
 # Too many arguments
 
 shell -exit 1 {vclpp source.pvcl target.vcl extra.junk}
+
+# File does not exist
+
+shell -exit 1 -expect "Error: No such file" {vclpp non-existent.pvcl}

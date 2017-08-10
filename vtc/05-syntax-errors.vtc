@@ -1,0 +1,125 @@
+# vclpp
+# Copyright (C) 2017  Dridi Boukelmoune <dridi.boukelmoune@gmail.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+varnishtest "syntax errors"
+
+# Invalild constructor name
+
+shell -exit 1 -expect "invalid identifier, Line 1, Pos 1" {
+vclpp <<EOF
+vmod.obj.toomany { }
+EOF
+}
+
+# Missing object name
+
+shell -exit 1 -expect "expected identifier, Line 1, Pos 10" {
+vclpp <<EOF
+vmod.obj { }
+EOF
+}
+
+# Opening block
+
+shell -exit 1 -expect "expected '{', Line 1, Pos 18" {
+vclpp <<EOF
+std.director www round-robin { }
+EOF
+}
+
+# Missing dot
+
+shell -exit 1 -expect "expected '.' or '}', Line 2, Pos 2" {
+vclpp <<EOF
+vmod.obj name {
+	field = value;
+}
+EOF
+}
+
+# Missing field or method
+
+shell -exit 1 -expect "expected field or method, Line 2, Pos 3" {
+vclpp <<EOF
+vmod.obj name {
+	.42 = invalid;
+}
+EOF
+}
+
+# Invalid field or method
+
+shell -exit 1 -expect "expected field or method, Line 2, Pos 3" {
+vclpp <<EOF
+vmod.obj name {
+	.field.toomany = invalid;
+}
+EOF
+}
+
+# Not a field or method
+
+shell -exit 1 -expect "expected '=' or '(', Line 2, Pos 9" {
+vclpp <<EOF
+vmod.obj name {
+	.field -> value;
+}
+EOF
+}
+
+# Missing value
+
+shell -exit 1 -expect "expected value, Line 2, Pos 11" {
+vclpp <<EOF
+vmod.obj name {
+	.field = ;
+}
+EOF
+}
+
+# Missing semi-colon (TODO: fix bogus column)
+
+shell -exit 1 -expect "expected ';', Line 3, Pos 0" {
+vclpp >actual.vcl <<EOF
+vmod.obj name {
+	.method()
+}
+EOF
+}
+
+# Spurious block
+
+shell -exit 1 -expect "opening a block inside an expression, Line 2, Pos 10" {
+vclpp <<EOF
+vmod.obj name {
+	.method({block});
+}
+EOF
+}
+
+# Can't have fields after methods
+
+shell -exit 1 -expect "field after methods, Line 6, Pos 8" {
+vclpp <<EOF
+querystring.filter qf {
+	.match = name;
+	.add_string("_");
+	.add_glob("utm_*");
+	.add_regex("sess[0-9]+");
+	.sort = true;
+}
+EOF
+}

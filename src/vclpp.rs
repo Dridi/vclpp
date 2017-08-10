@@ -115,14 +115,14 @@ impl Preprocessor {
     fn error(&self, tok: Token) -> PvclResult {
         let msg = match self.expect {
             Code |
-            EndOfField => unreachable!(),
+            EndOfField |
+            EndOfMethod => unreachable!(),
             Ident => "expected identifier",
             Block => "expected '{'",
             Dot => "expected '.' or '}'",
             Member => "expected field or method",
             FieldOrMethod => "expected '=' or '('",
             Value => "expected value",
-            EndOfMethod |
             SemiColon => "expected ';'",
             Arguments => "expected arguments or ')'",
         };
@@ -201,14 +201,19 @@ impl Preprocessor {
                 (FieldOrMethod, _, _, Blank) => continue,
                 (FieldOrMethod, _, _, _) => pp.error(tok)?,
 
-                (Value, _, 0, Delim(';')) => pp.expect = EndOfField,
-                (Value, _, _, _) => (),
+                (Value, _, 0, Delim(';')) => pp.error(tok)?,
+                (Value, _, _, Blank) => continue,
+                (Value, _, _, _) => pp.expect = EndOfField,
+
+                (EndOfField, _, 0, Delim(';')) => pp.expect = Dot,
+                (EndOfField, _, _, _) => (),
 
                 (Arguments, _, 0, ClosingGroup) => pp.expect = EndOfMethod,
+                // XXX: insufficient arguments parsing
                 (Arguments, _, _, _) => (),
 
                 (SemiColon, _, 0, Delim(';')) => pp.expect = Dot,
-                (SemiColon, _, _, _) => (),
+                (SemiColon, _, _, _) => pp.error(tok)?,
 
                 (_, _, _, _) => unreachable!(),
             }
@@ -222,16 +227,12 @@ impl Preprocessor {
                 }
                 Value => {
                     assert!(pp.field.is_some());
-                    match pp.symbol {
-                        Some(_) => {
-                            assert_eq!(&src[&tok], "=");
-                            pp.symbol = None;
-                            write!(out, "\t\t{} =", &src[&pp.field.unwrap()])?;
-                        }
-                        None => write!(out, "{}", &src[&tok])?,
-                    }
+                    assert!(pp.symbol.is_some());
+                    assert_eq!(&src[&tok], "=");
+                    write!(out, "\t\t{} = ", &src[&pp.field.unwrap()])?;
+                    pp.symbol = None;
                 }
-                EndOfField => pp.expect = Dot,
+                EndOfField => write!(out, "{}", &src[&tok])?,
                 Arguments => {
                     assert!(pp.ident.is_some());
                     assert!(pp.method.is_some());
