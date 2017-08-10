@@ -116,6 +116,8 @@ would be translated in VCL as::
 LIMITATIONS
 ===========
 
+The first big limitation is that ``vclpp`` can only process UTF-8 files.
+
 VCL already has some degree of preprocessing in place. First, it can be
 considered a preprocessor for C since it translates to C code. And second,
 there is the expansion of ``include`` statements. An included VCL file can
