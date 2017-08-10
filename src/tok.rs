@@ -149,7 +149,7 @@ impl<'a> Tokenizer<'a> {
             (None, _, ' ')  |
             (None, _, '\n') |
             (None, _, '\r') |
-            (None, _, '\t') => (Some(Blank), CurrentReady),
+            (None, _, '\t') => (Some(Blank), MayNeedMore),
             (None, _, 'a'...'z') |
             (None, _, 'A'...'Z') => (Some(Name(0)), MayNeedMore),
             (None, _, '0'...'9') => (Some(Integer), MayNeedMore),
@@ -175,6 +175,12 @@ impl<'a> Tokenizer<'a> {
             (None, _, '}') => (Some(ClosingBlock), CurrentReady),
 
             (None, _, _) => (Some(Bad("unexpected character")), Done),
+
+            (Some(Blank), _, ' ')  |
+            (Some(Blank), _, '\n') |
+            (Some(Blank), _, '\r') |
+            (Some(Blank), _, '\t') => (Some(Blank), MayNeedMore),
+            (Some(Blank), _, _) => (Some(Blank), PreviousReady),
 
             (Some(OpeningBlock), '{', '"') => (Some(BlockString), NeedsMore),
             (Some(OpeningBlock), _, _) => (Some(OpeningBlock), PreviousReady),
