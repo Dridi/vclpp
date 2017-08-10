@@ -118,3 +118,7 @@ EOF
 
 grep -q 'bad token: invalid name' tokens.txt
 }
+
+# \ No newline at end of file
+
+shell -expect "token: Integer '123'" {printf 123 | vcltok}

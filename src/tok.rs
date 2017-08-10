@@ -105,6 +105,7 @@ impl<'a> Index<&'a Token> for String {
 /* ------------------------------------------------------------------- */
 
 enum Handling {
+    MayNeedMore,
     NeedsMore,
     HasChar,
     CurrentReady,
@@ -150,10 +151,10 @@ impl<'a> Tokenizer<'a> {
             (None, _, '\r') |
             (None, _, '\t') => (Some(Blank), CurrentReady),
             (None, _, 'a'...'z') |
-            (None, _, 'A'...'Z') => (Some(Name(0)), NeedsMore),
-            (None, _, '0'...'9') => (Some(Integer), NeedsMore),
+            (None, _, 'A'...'Z') => (Some(Name(0)), MayNeedMore),
+            (None, _, '0'...'9') => (Some(Integer), MayNeedMore),
             (None, _, '.') => (Some(Prop), CurrentReady),
-            (None, _, '/') => (Some(Delim('/')), NeedsMore),
+            (None, _, '/') => (Some(Delim('/')), MayNeedMore),
             (None, _, '+') |
             (None, _, '-') |
             (None, _, '*') |
@@ -170,7 +171,7 @@ impl<'a> Tokenizer<'a> {
             (None, _, '#') => (Some(Comment), NeedsMore),
             (None, _, '(') => (Some(OpeningGroup), CurrentReady),
             (None, _, ')') => (Some(ClosingGroup), CurrentReady),
-            (None, _, '{') => (Some(OpeningBlock), NeedsMore),
+            (None, _, '{') => (Some(OpeningBlock), MayNeedMore),
             (None, _, '}') => (Some(ClosingBlock), CurrentReady),
 
             (None, _, _) => (Some(Bad("unexpected character")), Done),
@@ -187,17 +188,17 @@ impl<'a> Tokenizer<'a> {
             (Some(Name(d)), _, 'A'...'Z') |
             (Some(Name(d)), _, '0'...'9') |
             (Some(Name(d)), _, '_') |
-            (Some(Name(d)), _, '-') => (Some(Name(d)), NeedsMore),
+            (Some(Name(d)), _, '-') => (Some(Name(d)), MayNeedMore),
             (Some(Name(d)), _, '.') => (Some(Name(d+1)), NeedsMore),
             (Some(Name(_)), '.', _) => (Some(Bad("invalid name")), Done),
             (Some(Name(d)), _, _) => (Some(Name(d)), PreviousReady),
 
-            (Some(Integer), _, '.') => (Some(Number), NeedsMore),
-            (Some(Integer), _, '0'...'9') => (Some(Integer), NeedsMore),
+            (Some(Integer), _, '.') => (Some(Number), MayNeedMore),
+            (Some(Integer), _, '0'...'9') => (Some(Integer), MayNeedMore),
             (Some(Integer), _, _) => (Some(Integer), PreviousReady),
 
             (Some(Number), _, '.') => (Some(Bad("invalid number")), Done),
-            (Some(Number), _, '0'...'9') => (Some(Number), NeedsMore),
+            (Some(Number), _, '0'...'9') => (Some(Number), MayNeedMore),
             (Some(Number), _, _) => (Some(Number), PreviousReady),
 
             (Some(SimpleString), _, '\n')
@@ -239,6 +240,15 @@ impl<'a> Tokenizer<'a> {
                     return;
                 }
             },
+            MayNeedMore => match self.chars.next() {
+                Some(c) => c,
+                None => {
+                    let (lexeme, _) = self.next_state('\0');
+                    self.lexeme = lexeme;
+                    self.handling = Done;
+                    return;
+                }
+            },
             HasChar => self.previous,
             _ => unreachable!()
         };
@@ -248,9 +258,7 @@ impl<'a> Tokenizer<'a> {
         match handling {
             PreviousReady => (),
             HasChar => unreachable!(),
-            _ => {
-                self.end.consume(c);
-            }
+            _ => self.end.consume(c),
         }
 
         if self.lexeme.is_none() {
@@ -284,7 +292,9 @@ impl<'a> Iterator for Tokenizer<'a> {
 
         loop {
             match self.handling {
-                NeedsMore | HasChar => self.next_char(),
+                MayNeedMore |
+                NeedsMore |
+                HasChar => self.next_char(),
                 Done => return Some(self.to_token()),
                 Dry => return None,
                 _ => break
