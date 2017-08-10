@@ -30,25 +30,26 @@ pub struct Position {
     pub line: usize,
     pub column: usize,
     offset: usize,
+    newline: bool,
 }
 
 impl Position {
     fn new() -> Position {
         Position {
-            line: 1,
+            line: 0,
             column: 0,
             offset: 0,
+            newline: true,
         }
     }
 
     fn consume(&mut self, c: char) {
-        match c {
-            '\n' => {
-                self.line += 1;
-                self.column = 0;
-            },
-            _ => self.column += 1, // XXX: not quite true
+        if self.newline {
+            self.line += 1;
+            self.column = 0;
         }
+        self.newline = c == '\n';
+        self.column += 1; // XXX: not quite true
         self.offset += c.len_utf8();
     }
 

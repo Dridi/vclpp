@@ -90,10 +90,10 @@ vmod.obj name {
 EOF
 }
 
-# Missing semi-colon (TODO: fix bogus column)
+# Missing semi-colon
 
-shell -exit 1 -expect "expected ';', Line 3, Pos 0" {
-vclpp >actual.vcl <<EOF
+shell -exit 1 -expect "expected ';', Line 2, Pos 11" {
+vclpp <<EOF
 vmod.obj name {
 	.method()
 }
