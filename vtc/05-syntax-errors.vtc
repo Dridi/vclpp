@@ -123,3 +123,19 @@ querystring.filter qf {
 }
 EOF
 }
+
+# Incomplete block
+
+shell -exit 1 -expect "incomplete VCL, Line 2, Pos 12" {
+vclpp <<EOF
+vmod.obj name {
+	.method();
+EOF
+# }
+}
+
+# Expecting a declarative object
+
+shell -exit 1 -expect "incomplete VCL, Line 1, Pos 10" {
+printf 'vmod.obj name' | vclpp
+}

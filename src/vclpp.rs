@@ -59,6 +59,15 @@ enum Expected {
     SemiColon,
 }
 
+impl Expected {
+    fn pvcl(&self) -> bool {
+        match self {
+            &Code => false,
+            _ => true,
+        }
+    }
+}
+
 struct Preprocessor {
     expect: Expected,
     groups: isize,
@@ -131,7 +140,9 @@ impl Preprocessor {
 
     fn exec<'a, W: Write>(src: &'a String, mut out: W) -> PvclResult {
         let mut pp = Preprocessor::new();
+        let mut last_tok: Option<Token> = None;
         for tok in Tokenizer::new(src.chars()) {
+            last_tok = Some(tok);
             pp.balance(tok)?;
             match (pp.expect, pp.blocks, pp.groups, tok.lexeme) {
                 (_, _, _, Bad(s)) => Err(SyntaxError(tok, s))?,
@@ -252,8 +263,9 @@ impl Preprocessor {
                 _ => (),
             };
         }
-        if pp.groups != 0 || pp.blocks != 0 {
-            unimplemented!();
+        if pp.expect.pvcl() || pp.groups != 0 || pp.blocks != 0 {
+            assert!(last_tok.is_some());
+            Err(SyntaxError(last_tok.unwrap(), "incomplete VCL"))?;
         }
         out.flush()?;
         Ok(())
