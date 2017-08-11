@@ -255,6 +255,7 @@ impl Preprocessor {
         if pp.groups != 0 || pp.blocks != 0 {
             unimplemented!();
         }
+        out.flush()?;
         Ok(())
     }
 }

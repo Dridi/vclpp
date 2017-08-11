@@ -58,7 +58,7 @@ fn decompose() -> Result<()> {
         }
     }
 
-    Ok(())
+    out.flush()
 }
 
 fn main() {
