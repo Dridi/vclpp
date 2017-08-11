@@ -111,7 +111,6 @@ enum Handling {
     CurrentReady,
     PreviousReady,
     Done,
-    Dry,
 }
 
 pub struct Tokenizer<'a> {
@@ -236,13 +235,8 @@ impl<'a> Tokenizer<'a> {
             NeedsMore => match self.chars.next() {
                 Some(c) => c,
                 None => {
-                    if self.lexeme.is_some() {
-                        self.lexeme = Some(Bad("incomplete VCL"));
-                        self.handling = Done;
-                    }
-                    else {
-                        self.handling = Dry;
-                    }
+                    self.lexeme = Some(Bad("incomplete VCL"));
+                    self.handling = Done;
                     return;
                 }
             },
@@ -292,7 +286,7 @@ impl<'a> Iterator for Tokenizer<'a> {
                 self.lexeme = None;
                 self.start = self.end;
             },
-            Done | Dry => return None,
+            Done => return None,
             _ => ()
         }
 
@@ -302,7 +296,6 @@ impl<'a> Iterator for Tokenizer<'a> {
                 NeedsMore |
                 HasChar => self.next_char(),
                 Done => return Some(self.to_token()),
-                Dry => return None,
                 _ => break
             }
         }
