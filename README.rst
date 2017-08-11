@@ -174,7 +174,9 @@ Contributing
 ------------
 
 The simplest way to contribute is reporting a problem by opening a Github
-[issue](https://github.com/dridi/vclpp/issues/new).
+issue_.
+
+.. _issue: https://github.com/dridi/vclpp/issues/new
 
 Even if you are not planning to use ``vclpp``, you can try it with regular VCL
 code and check whether the output is identical to the original file. It should
