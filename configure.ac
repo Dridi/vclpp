@@ -44,6 +44,7 @@ AC_CHECK_PROGS([RST2MAN], [rst2man rst2man.py])
 AS_IF([test -z "$RST2MAN"], [RST2MAN=":"])
 
 AC_ARG_VAR([KCOV], [kcov command (optional)])
+AC_ARG_VAR([KCOV_FLAGS], [kcov flags (optional)])
 AC_ARG_WITH([kcov],
 	[AS_HELP_STRING([--with-kcov], [use kcov (default is no)])],
 	[use_kcov=$withval],
@@ -51,18 +52,18 @@ AC_ARG_WITH([kcov],
 
 AS_IF([test "$use_kcov" != no], [AC_CHECK_PROGS([KCOV], [kcov])])
 
-AC_SUBST([VCLPP_PATH], ['$(abs_builddir)'])
+AC_SUBST([VCLPP_PATH], ['$(abs_builddir)/kcov'])
 
 AC_CONFIG_FILES([
 	Makefile
-	kcov-wrapper.sh
+	kcov/wrapper.sh
 	vclpp.spec
 ])
 AC_OUTPUT
 
-ln -f -s kcov-wrapper.sh vclpp
-ln -f -s kcov-wrapper.sh vcltok
-chmod +x kcov-wrapper.sh
+ln -f -s wrapper.sh kcov/vclpp
+ln -f -s wrapper.sh kcov/vcltok
+chmod +x kcov/wrapper.sh
 
 AS_ECHO("
 	==== $PACKAGE_STRING ====

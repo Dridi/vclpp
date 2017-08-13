@@ -20,9 +20,9 @@ configure
 
 # coverage
 
-kcov/
+kcov/*/
 
-kcov-wrapper.sh
+wrapper.sh
 
 # bin
 

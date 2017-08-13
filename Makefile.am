@@ -76,16 +76,21 @@ TESTS = $(VTC_TESTS)
 check: all
 
 kcov:
-	rm -rf kcov/
 	$(MAKE) $(AM_MAKEFLAGS) clean
 	$(MAKE) $(AM_MAKEFLAGS) RUSTC_FLAGS=-g check
-	$(KCOV) --merge kcov/ kcov/vtc/*/*/
-	@echo "results: $(abs_builddir)/kcov/index.html"
+	$(KCOV) $(KCOV_FLAGS) --merge kcov/report/ kcov/vtc/*/*/
+	$(MAKE) $(AM_MAKEFLAGS) clean-kcov-temp
+	@echo "Results: $(abs_builddir)/kcov/report/index.html"
 
-.PHONY: kcov
+clean-kcov-report:
+	rm -rf kcov/report/
 
-clean-local:
-	rm -rf kcov/
+clean-kcov-temp:
+	rm -rf kcov/vtc/ kcov/merged-kcov-output/
+
+.PHONY: kcov clean-kcov-report clean-kcov-temp
+
+clean-local: clean-kcov-report clean-kcov-temp
 endif
 
 CLEANFILES = \
