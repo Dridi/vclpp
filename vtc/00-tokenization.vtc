@@ -38,7 +38,9 @@ is = here 4 testing purposes && only
 {"The idea is to try all branches
 with"} +/- legit.tokens
 
-if (*it <.makes_no_sense ||>42.0) then pass!
+if (*it <.makes_no_sense ||>42.0) then pass anyway!
+
+C{ even = inline_c(is->supported); }C
 EOF
 
 ! grep 'bad token:' tokens.txt
@@ -48,26 +50,25 @@ awk '{print $3}' tokens.txt | sort | uniq
 
 # Detect incomplete tokens
 
-shell {
-set -e
-
-vcltok >tokens.txt <<EOF
+shell -expect "bad token: incomplete VCL" {
+vcltok <<EOF
 Put some seemingly valid tokens,
 and then /* start a C comment
 EOF
-
-grep -q 'bad token: incomplete VCL' tokens.txt
 }
 
-shell {
-set -e
-
-vcltok >tokens.txt <<EOF
+shell -expect "bad token: incomplete VCL" {
+vcltok <<EOF
 Put some seemingly valid tokens,
 and then {" start a block string }
 EOF
+}
 
-grep -q 'bad token: incomplete VCL' tokens.txt
+shell -expect "bad token: incomplete VCL" {
+vcltok <<EOF
+C code also needs to be terminated
+properly C{ once a block is started }
+EOF
 }
 
 # Play some guitar

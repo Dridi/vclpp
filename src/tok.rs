@@ -77,6 +77,7 @@ pub enum Lexeme {
     Delim(char),
     SimpleString,
     BlockString,
+    InlineC(bool), // are we already in C code?
     Comment,
     CComment,
     CxxComment,
@@ -143,13 +144,14 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    fn next_state(&self, c: char) -> (Lexeme, Handling) {
+    fn next_state(&mut self, c: char) -> (Lexeme, Handling) {
         if self.lexeme.is_none() {
             return match c {
                 ' '  |
                 '\n' |
                 '\r' |
                 '\t' => (Blank, MayNeedMore),
+                'C' => (InlineC(false), MayNeedMore),
                 'a'...'z' |
                 'A'...'Z' => (Name(0), MayNeedMore),
                 '0'...'9' => (Integer, MayNeedMore),
@@ -214,6 +216,16 @@ impl<'a> Tokenizer<'a> {
 
             (BlockString, '"', '}') => (BlockString, CurrentReady),
             (BlockString, _, _) => (BlockString, NeedsMore),
+
+            (InlineC(false), 'C', '{') => (InlineC(true), NeedsMore),
+            (InlineC(false), 'C', _) => {
+                self.lexeme = Some(Name(0));
+                self.next_state(c)
+            }
+            (InlineC(false), _, _) => unreachable!(),
+
+            (InlineC(true), '}', 'C') => (InlineC(true), CurrentReady),
+            (InlineC(true), _, _) => (InlineC(true), NeedsMore),
 
             (Comment, _, '\n') => (Comment, CurrentReady),
             (Comment, _, _) => (Comment, NeedsMore),
