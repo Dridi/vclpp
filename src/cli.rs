@@ -65,7 +65,7 @@ Usage:
 
 Documentation available locally via `man vclpp`", arg0);
     exit(1);
-}
+} // unreachable
 
 pub fn parse_args() -> Result<(String, Output)> {
     let mut args = env::args();
@@ -100,4 +100,4 @@ pub fn parse_args() -> Result<(String, Output)> {
 pub fn fail<T: Display>(s: T) -> ! {
     eprintln!("Error: {}", s);
     exit(1);
-}
+} // unreachable

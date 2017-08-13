@@ -124,6 +124,7 @@ impl Preprocessor {
     fn error(&self, tok: Token) -> PvclResult {
         let msg = match self.expect {
             Code |
+            Arguments |
             EndOfField |
             EndOfMethod => unreachable!(),
             Ident => "expected identifier",
@@ -133,7 +134,6 @@ impl Preprocessor {
             FieldOrMethod => "expected '=' or '('",
             Value => "expected value",
             SemiColon => "expected ';'",
-            Arguments => "expected arguments or ')'",
         };
         Err(SyntaxError(tok, msg))
     }
