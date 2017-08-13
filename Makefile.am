@@ -66,7 +66,8 @@ VTC_TESTS = \
 	vtc/02-empty-object.vtc \
 	vtc/03-complex-object.vtc \
 	vtc/04-command-line.vtc \
-	vtc/05-syntax-errors.vtc
+	vtc/05-syntax-errors.vtc \
+	vtc/06-io-errors.vtc
 
 
 if WITH_TESTS
