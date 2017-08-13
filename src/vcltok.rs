@@ -21,24 +21,17 @@ mod tok;
 
 use std::io::Result;
 use std::io::Write;
-use std::vec::Vec;
 
 use tok::Lexeme::*;
 use tok::Tokenizer;
 
-fn write_escaped<W: Write>(out: &mut W, s: &str) {
-    s.bytes().map(|b| -> Vec<u8> {
-        match b as char {
-            '\\' => vec!('\\' as u8, '\\' as u8),
-            '\n' => vec!('\\' as u8, 'n' as u8),
-            '\r' => vec!('\\' as u8, 'r' as u8),
-            '\t' => vec!('\\' as u8, 't' as u8),
-            _ => vec!(b)
-        }
-    }).flat_map(|v| out.write(v.as_ref()).err())
-      .take(1)
-      .inspect(|e| cli::fail(e))
-      .count();
+fn write_escaped<W: Write>(out: &mut W, s: &str) -> Result<usize> {
+    s.chars()
+     .flat_map(|c| c.escape_default())
+     .map(|c| out.write(&[c as u8]))
+     .filter(|r| r.is_err())
+     .nth(0)
+     .unwrap_or(Ok(0))
 }
 
 fn decompose() -> Result<()> {
@@ -50,7 +43,7 @@ fn decompose() -> Result<()> {
             Bad(s) => write!(out, "bad token: {}\n", s)?,
             _ => {
                 write!(out, "token: {:?} '", tok.lexeme)?;
-                write_escaped(&mut out, &src[&tok]);
+                write_escaped(&mut out, &src[&tok])?;
                 write!(out, "'\n")?;
             }
         }
