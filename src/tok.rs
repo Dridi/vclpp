@@ -144,37 +144,39 @@ impl<'a> Tokenizer<'a> {
     }
 
     fn next_state(&self, c: char) -> (Lexeme, Handling) {
+        if self.lexeme.is_none() {
+            return match c {
+                ' '  |
+                '\n' |
+                '\r' |
+                '\t' => (Blank, MayNeedMore),
+                'a'...'z' |
+                'A'...'Z' => (Name(0), MayNeedMore),
+                '0'...'9' => (Integer, MayNeedMore),
+                '.' => (Prop, CurrentReady),
+                '/' => (Delim('/'), MayNeedMore),
+                '+' |
+                '-' |
+                '*' |
+                '=' |
+                '<' |
+                '>' |
+                '~' |
+                '!' |
+                '&' |
+                '|' |
+                ',' |
+                ';' => (Delim(c), CurrentReady),
+                '"' => (SimpleString, NeedsMore),
+                '#' => (Comment, NeedsMore),
+                '(' => (OpeningGroup, CurrentReady),
+                ')' => (ClosingGroup, CurrentReady),
+                '{' => (OpeningBlock, MayNeedMore),
+                '}' => (ClosingBlock, CurrentReady),
+                _ => (Bad("unexpected character"), Done),
+            };
+        }
         match (self.lexeme, self.previous, c) {
-            (None, _, ' ')  |
-            (None, _, '\n') |
-            (None, _, '\r') |
-            (None, _, '\t') => (Blank, MayNeedMore),
-            (None, _, 'a'...'z') |
-            (None, _, 'A'...'Z') => (Name(0), MayNeedMore),
-            (None, _, '0'...'9') => (Integer, MayNeedMore),
-            (None, _, '.') => (Prop, CurrentReady),
-            (None, _, '/') => (Delim('/'), MayNeedMore),
-            (None, _, '+') |
-            (None, _, '-') |
-            (None, _, '*') |
-            (None, _, '=') |
-            (None, _, '<') |
-            (None, _, '>') |
-            (None, _, '~') |
-            (None, _, '!') |
-            (None, _, '&') |
-            (None, _, '|') |
-            (None, _, ',') |
-            (None, _, ';') => (Delim(c), CurrentReady),
-            (None, _, '"') => (SimpleString, NeedsMore),
-            (None, _, '#') => (Comment, NeedsMore),
-            (None, _, '(') => (OpeningGroup, CurrentReady),
-            (None, _, ')') => (ClosingGroup, CurrentReady),
-            (None, _, '{') => (OpeningBlock, MayNeedMore),
-            (None, _, '}') => (ClosingBlock, CurrentReady),
-
-            (None, _, _) => (Bad("unexpected character"), Done),
-
             (Some(Blank), _, ' ')  |
             (Some(Blank), _, '\n') |
             (Some(Blank), _, '\r') |
