@@ -143,17 +143,17 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    fn next_state(&self, c: char) -> (Option<Lexeme>, Handling) {
+    fn next_state(&self, c: char) -> (Lexeme, Handling) {
         match (self.lexeme, self.previous, c) {
             (None, _, ' ')  |
             (None, _, '\n') |
             (None, _, '\r') |
-            (None, _, '\t') => (Some(Blank), MayNeedMore),
+            (None, _, '\t') => (Blank, MayNeedMore),
             (None, _, 'a'...'z') |
-            (None, _, 'A'...'Z') => (Some(Name(0)), MayNeedMore),
-            (None, _, '0'...'9') => (Some(Integer), MayNeedMore),
-            (None, _, '.') => (Some(Prop), CurrentReady),
-            (None, _, '/') => (Some(Delim('/')), MayNeedMore),
+            (None, _, 'A'...'Z') => (Name(0), MayNeedMore),
+            (None, _, '0'...'9') => (Integer, MayNeedMore),
+            (None, _, '.') => (Prop, CurrentReady),
+            (None, _, '/') => (Delim('/'), MayNeedMore),
             (None, _, '+') |
             (None, _, '-') |
             (None, _, '*') |
@@ -165,64 +165,64 @@ impl<'a> Tokenizer<'a> {
             (None, _, '&') |
             (None, _, '|') |
             (None, _, ',') |
-            (None, _, ';') => (Some(Delim(c)), CurrentReady),
-            (None, _, '"') => (Some(SimpleString), NeedsMore),
-            (None, _, '#') => (Some(Comment), NeedsMore),
-            (None, _, '(') => (Some(OpeningGroup), CurrentReady),
-            (None, _, ')') => (Some(ClosingGroup), CurrentReady),
-            (None, _, '{') => (Some(OpeningBlock), MayNeedMore),
-            (None, _, '}') => (Some(ClosingBlock), CurrentReady),
+            (None, _, ';') => (Delim(c), CurrentReady),
+            (None, _, '"') => (SimpleString, NeedsMore),
+            (None, _, '#') => (Comment, NeedsMore),
+            (None, _, '(') => (OpeningGroup, CurrentReady),
+            (None, _, ')') => (ClosingGroup, CurrentReady),
+            (None, _, '{') => (OpeningBlock, MayNeedMore),
+            (None, _, '}') => (ClosingBlock, CurrentReady),
 
-            (None, _, _) => (Some(Bad("unexpected character")), Done),
+            (None, _, _) => (Bad("unexpected character"), Done),
 
             (Some(Blank), _, ' ')  |
             (Some(Blank), _, '\n') |
             (Some(Blank), _, '\r') |
-            (Some(Blank), _, '\t') => (Some(Blank), MayNeedMore),
-            (Some(Blank), _, _) => (Some(Blank), PreviousReady),
+            (Some(Blank), _, '\t') => (Blank, MayNeedMore),
+            (Some(Blank), _, _) => (Blank, PreviousReady),
 
-            (Some(OpeningBlock), '{', '"') => (Some(BlockString), NeedsMore),
-            (Some(OpeningBlock), _, _) => (Some(OpeningBlock), PreviousReady),
+            (Some(OpeningBlock), '{', '"') => (BlockString, NeedsMore),
+            (Some(OpeningBlock), _, _) => (OpeningBlock, PreviousReady),
 
-            (Some(Delim(_)), '/', '*') => (Some(CComment), NeedsMore),
-            (Some(Delim(_)), '/', '/') => (Some(CxxComment), NeedsMore),
-            (Some(Delim(_)), '/', _) => (Some(Delim('/')), PreviousReady),
+            (Some(Delim(_)), '/', '*') => (CComment, NeedsMore),
+            (Some(Delim(_)), '/', '/') => (CxxComment, NeedsMore),
+            (Some(Delim(_)), '/', _) => (Delim('/'), PreviousReady),
 
-            (Some(Name(_)), '.', '.') => (Some(Bad("invalid name")), Done),
+            (Some(Name(_)), '.', '.') => (Bad("invalid name"), Done),
             (Some(Name(d)), _, 'a'...'z') |
             (Some(Name(d)), _, 'A'...'Z') |
             (Some(Name(d)), _, '0'...'9') |
             (Some(Name(d)), _, '_') |
-            (Some(Name(d)), _, '-') => (Some(Name(d)), MayNeedMore),
-            (Some(Name(d)), _, '.') => (Some(Name(d+1)), NeedsMore),
-            (Some(Name(_)), '.', _) => (Some(Bad("invalid name")), Done),
-            (Some(Name(d)), _, _) => (Some(Name(d)), PreviousReady),
+            (Some(Name(d)), _, '-') => (Name(d), MayNeedMore),
+            (Some(Name(d)), _, '.') => (Name(d+1), NeedsMore),
+            (Some(Name(_)), '.', _) => (Bad("invalid name"), Done),
+            (Some(Name(d)), _, _) => (Name(d), PreviousReady),
 
-            (Some(Integer), _, '.') => (Some(Number), MayNeedMore),
-            (Some(Integer), _, '0'...'9') => (Some(Integer), MayNeedMore),
-            (Some(Integer), _, _) => (Some(Integer), PreviousReady),
+            (Some(Integer), _, '.') => (Number, MayNeedMore),
+            (Some(Integer), _, '0'...'9') => (Integer, MayNeedMore),
+            (Some(Integer), _, _) => (Integer, PreviousReady),
 
-            (Some(Number), _, '.') => (Some(Bad("invalid number")), Done),
-            (Some(Number), _, '0'...'9') => (Some(Number), MayNeedMore),
-            (Some(Number), _, _) => (Some(Number), PreviousReady),
+            (Some(Number), _, '.') => (Bad("invalid number"), Done),
+            (Some(Number), _, '0'...'9') => (Number, MayNeedMore),
+            (Some(Number), _, _) => (Number, PreviousReady),
 
             (Some(SimpleString), _, '\n')
-                => (Some(Bad("invalid string")), Done),
+                => (Bad("invalid string"), Done),
             (Some(SimpleString), _, '"')
-                => (Some(SimpleString), CurrentReady),
-            (Some(SimpleString), _, _) => (Some(SimpleString), NeedsMore),
+                => (SimpleString, CurrentReady),
+            (Some(SimpleString), _, _) => (SimpleString, NeedsMore),
 
-            (Some(BlockString), '"', '}') => (Some(BlockString), CurrentReady),
-            (Some(BlockString), _, _) => (Some(BlockString), NeedsMore),
+            (Some(BlockString), '"', '}') => (BlockString, CurrentReady),
+            (Some(BlockString), _, _) => (BlockString, NeedsMore),
 
-            (Some(Comment), _, '\n') => (Some(Comment), CurrentReady),
-            (Some(Comment), _, _) => (Some(Comment), NeedsMore),
+            (Some(Comment), _, '\n') => (Comment, CurrentReady),
+            (Some(Comment), _, _) => (Comment, NeedsMore),
 
-            (Some(CComment), '*', '/') => (Some(CComment), CurrentReady),
-            (Some(CComment), _, _) => (Some(CComment), NeedsMore),
+            (Some(CComment), '*', '/') => (CComment, CurrentReady),
+            (Some(CComment), _, _) => (CComment, NeedsMore),
 
-            (Some(CxxComment), _, '\n') => (Some(CxxComment), CurrentReady),
-            (Some(CxxComment), _, _) => (Some(CxxComment), NeedsMore),
+            (Some(CxxComment), _, '\n') => (CxxComment, CurrentReady),
+            (Some(CxxComment), _, _) => (CxxComment, NeedsMore),
 
             (_, _, _) => {
                 unreachable!("{:?}, '{}', '{}'", self.lexeme, self.previous, c)
@@ -244,7 +244,7 @@ impl<'a> Tokenizer<'a> {
                 Some(c) => c,
                 None => {
                     let (lexeme, _) = self.next_state('\0');
-                    self.lexeme = lexeme;
+                    self.lexeme = Some(lexeme);
                     self.handling = Done;
                     return;
                 }
@@ -266,7 +266,7 @@ impl<'a> Tokenizer<'a> {
         }
 
         self.handling = handling;
-        self.lexeme = lexeme;
+        self.lexeme = Some(lexeme);
         self.previous = c;
     }
 }
