@@ -228,13 +228,13 @@ impl<'a> Tokenizer<'a> {
             (InlineC(true), _, _) => (InlineC(true), NeedsMore),
 
             (Comment, _, '\n') => (Comment, CurrentReady),
-            (Comment, _, _) => (Comment, NeedsMore),
+            (Comment, _, _) => (Comment, MayNeedMore),
 
             (CComment, '*', '/') => (CComment, CurrentReady),
             (CComment, _, _) => (CComment, NeedsMore),
 
             (CxxComment, _, '\n') => (CxxComment, CurrentReady),
-            (CxxComment, _, _) => (CxxComment, NeedsMore),
+            (CxxComment, _, _) => (CxxComment, MayNeedMore),
 
             (_, _, _) => {
                 unreachable!("{:?}, '{}', '{}'", self.lexeme, self.previous, c)
