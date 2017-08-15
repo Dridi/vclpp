@@ -95,6 +95,16 @@ pub struct Token {
     pub end: Position,
 }
 
+impl Token {
+    pub fn turn_bad(&self, msg: &'static str) -> Self {
+        Token {
+            lexeme: Bad(msg),
+            start: self.start,
+            end: self.end,
+        }
+    }
+}
+
 impl<'a> Index<&'a Token> for String {
     type Output = str;
 

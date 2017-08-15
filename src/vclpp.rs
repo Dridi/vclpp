@@ -93,11 +93,11 @@ impl Preprocessor {
         }
     }
 
-    fn balance(&mut self, tok: Token) -> PvclResult {
+    fn balance(&mut self, tok: Token) -> Option<&'static str> {
         assert!(self.groups >= 0);
         assert!(self.blocks >= 0);
         if tok.lexeme == OpeningBlock && self.groups > 0 {
-            Err(SyntaxError(tok, "opening a block inside an expression"))?;
+            return Some("opening a block inside an expression");
         }
 
         match tok.lexeme {
@@ -109,10 +109,11 @@ impl Preprocessor {
         }
 
         if self.groups < 0 || self.blocks < 0 {
-            Err(SyntaxError(tok, "unbalanced brackets"))?;
+            Some("unbalanced brackets")
         }
-
-        Ok(())
+        else {
+            None
+        }
     }
 
     fn error(&self, tok: Token) -> PvclResult {
@@ -135,9 +136,12 @@ impl Preprocessor {
     fn exec<'a, W: Write>(src: &'a String, mut out: W) -> PvclResult {
         let mut pp = Preprocessor::new();
         let mut last_tok: Option<Token> = None;
-        for tok in Tokenizer::new(src.chars()) {
+        for t in Tokenizer::new(src.chars()) {
+            let tok = match pp.balance(t) {
+                Some(msg) => t.turn_bad(msg),
+                None => t,
+            };
             last_tok = Some(tok);
-            pp.balance(tok)?;
             match (pp.expect, pp.blocks, pp.groups, tok.lexeme) {
                 (_, _, _, Bad(s)) => Err(SyntaxError(tok, s))?,
 
