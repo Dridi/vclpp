@@ -77,6 +77,7 @@ struct Preprocessor {
     symbol: Option<Token>,
     field: Option<Token>,
     method: Option<Token>,
+    token: Option<Token>,
 }
 
 impl Preprocessor {
@@ -90,6 +91,7 @@ impl Preprocessor {
             symbol: None,
             field: None,
             method: None,
+            token: None,
         }
     }
 
@@ -102,6 +104,7 @@ impl Preprocessor {
         self.symbol = None;
         self.field = None;
         self.method = None;
+        // NB: don't reset self.token
     }
 
     fn balance(&mut self, tok: Token) -> Option<&'static str> {
@@ -146,13 +149,12 @@ impl Preprocessor {
 
     fn exec<'a, W: Write>(&mut self, src: &'a String, mut out: W)
     -> PvclResult {
-        let mut last_tok: Option<Token> = None;
         for t in Tokenizer::new(src.chars()) {
             let tok = match self.balance(t) {
                 Some(msg) => t.turn_bad(msg),
                 None => t,
             };
-            last_tok = Some(tok);
+            self.token = Some(tok);
             match (self.expect, self.blocks, self.groups, tok.lexeme) {
                 (_, _, _, Bad(s)) => Err(SyntaxError(tok.turn_bad(s)))?,
 
@@ -274,8 +276,8 @@ impl Preprocessor {
             };
         }
         if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
-            assert!(last_tok.is_some());
-            Err(SyntaxError(last_tok.unwrap().turn_bad("incomplete VCL")))?;
+            assert!(self.token.is_some());
+            Err(SyntaxError(self.token.unwrap().turn_bad("incomplete VCL")))?;
         }
         out.flush()?;
         Ok(())
