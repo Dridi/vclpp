@@ -18,11 +18,7 @@ varnishtest "command line"
 
 # Create a common source that shouldn't change when preprocessed
 
-shell {
-cat >source.pvcl <<EOF
-vcl 4.0;
-EOF
-}
+shell {varnishd -x builtin | tee source.pvcl}
 
 # Read from a file
 
