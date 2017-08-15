@@ -16,6 +16,33 @@
 
 varnishtest "syntax errors"
 
+# Unbalanced brackets
+
+shell -exit 1 -expect "unbalanced brackets, Line 6, Pos 34" {
+vclpp <<EOF
+vcl 4.0;
+
+import directors;
+
+sub vcl_init {
+	new rr = directors.round_robin());
+}
+EOF
+}
+
+shell -exit 1 -expect "unbalanced brackets, Line 7, Pos 2" {
+# extra { for varnishtest
+vclpp <<EOF
+vcl 4.0;
+
+import directors;
+
+sub vcl_init {
+	new rr = directors.round_robin();
+}}
+EOF
+}
+
 # Invalild constructor name
 
 shell -exit 1 -expect "invalid identifier, Line 1, Pos 1" {

@@ -67,7 +67,7 @@ impl fmt::Display for Position {
 
 /* ------------------------------------------------------------------- */
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub enum Lexeme {
     Blank,
     Name(usize), // number of dots in a name

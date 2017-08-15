@@ -94,12 +94,11 @@ impl Preprocessor {
     }
 
     fn balance(&mut self, tok: Token) -> PvclResult {
-        match (tok.lexeme, self.groups) {
-            (OpeningBlock, 0) => (),
-            (OpeningBlock, _) => Err(SyntaxError(tok,
-                "opening a block inside an expression"))?,
-            (_, _) => (),
-        };
+        assert!(self.groups >= 0);
+        assert!(self.blocks >= 0);
+        if tok.lexeme == OpeningBlock && self.groups > 0 {
+            Err(SyntaxError(tok, "opening a block inside an expression"))?;
+        }
 
         match tok.lexeme {
             OpeningGroup => self.groups += 1,
@@ -109,14 +108,9 @@ impl Preprocessor {
             _ => (),
         }
 
-        assert!(self.groups >= -1);
-        assert!(self.blocks >= -1);
-        match (self.groups, self.blocks) {
-            (-1, _) |
-            (_, -1) => Err(SyntaxError(tok, "unbalanced brackets"))?,
-            (0, 0) |
-            (_, _) => (),
-        };
+        if self.groups < 0 || self.blocks < 0 {
+            Err(SyntaxError(tok, "unbalanced brackets"))?;
+        }
 
         Ok(())
     }
