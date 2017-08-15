@@ -22,6 +22,7 @@ use std::str::Chars;
 
 use self::Handling::*;
 use self::Lexeme::*;
+use self::Synthetic::*;
 
 /* ------------------------------------------------------------------- */
 
@@ -88,20 +89,57 @@ pub enum Lexeme {
     Bad(&'static str),
 }
 
+impl Lexeme {
+    pub fn is_valid(&self) -> bool {
+        match self { &Bad(_) => false, _ => true }
+    }
+}
+
+#[derive(Clone, Copy)]
+enum Synthetic {
+    Raw(&'static str),
+    Dyn, // XXX: temporary broken
+}
+
 #[derive(Clone, Copy)]
 pub struct Token {
     pub lexeme: Lexeme,
     pub start: Position,
     pub end: Position,
+    synth: Option<Synthetic>,
 }
 
 impl Token {
     pub fn turn_bad(&self, msg: &'static str) -> Self {
+        assert!(self.lexeme.is_valid());
         Token {
             lexeme: Bad(msg),
             start: self.start,
             end: self.end,
+            synth: None, // XXX: really drop synthetic tokens?
         }
+    }
+
+    pub fn raw(lex: Lexeme, msg: &'static str) -> Self {
+        Token {
+            lexeme: lex,
+            start: Position::new(),
+            end: Position::new(),
+            synth: Some(Raw(msg)),
+        }
+    }
+
+    pub fn dyn(lex: Lexeme, msg: String) -> Self {
+        Token {
+            lexeme: lex,
+            start: Position::new(),
+            end: Position::new(),
+            synth: Some(Dyn),
+        }
+    }
+
+    pub fn to_synth(&self, src: &String) -> Self {
+        Self::dyn(self.lexeme, src[self].to_string())
     }
 }
 
@@ -109,7 +147,12 @@ impl<'a> Index<&'a Token> for String {
     type Output = str;
 
     fn index(&self, tok: &'a Token) -> &str {
-        &self.as_str()[tok.start.offset..tok.end.offset]
+        assert!(tok.lexeme.is_valid());
+        match tok.synth {
+            Some(Raw(msg)) => msg,
+            Some(Dyn) => unimplemented!(),
+            None => &self.as_str()[tok.start.offset..tok.end.offset],
+        }
     }
 }
 
@@ -152,6 +195,7 @@ impl<'a> Tokenizer<'a> {
             lexeme: self.lexeme.unwrap(),
             start: self.start,
             end: self.end,
+            synth: None,
         }
     }
 
