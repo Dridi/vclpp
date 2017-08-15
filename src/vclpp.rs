@@ -68,7 +68,8 @@ impl Expected {
     }
 }
 
-struct Preprocessor {
+struct Preprocessor<'pp> {
+    source: &'pp String,
     expect: Expected,
     groups: isize,
     blocks: isize,
@@ -80,9 +81,10 @@ struct Preprocessor {
     token: Option<Token>,
 }
 
-impl Preprocessor {
-    fn new() -> Preprocessor {
+impl<'pp> Preprocessor<'pp> {
+    fn new(source: &'pp String) -> Preprocessor<'pp> {
         Preprocessor {
+            source: source,
             expect: Code,
             groups: 0,
             blocks: 0,
@@ -147,9 +149,9 @@ impl Preprocessor {
         Err(SyntaxError(tok.turn_bad(msg)))
     }
 
-    fn exec<'a, W: Write>(&mut self, src: &'a String, mut out: W)
+    fn exec<'a, W: Write>(&mut self, mut out: W)
     -> PvclResult {
-        for t in Tokenizer::new(src.chars()) {
+        for t in Tokenizer::new(self.source.chars()) {
             let tok = match self.balance(t) {
                 Some(msg) => t.turn_bad(msg),
                 None => t,
@@ -241,31 +243,34 @@ impl Preprocessor {
                 (_, _, _, _) => unreachable!(),
             }
             match self.expect {
-                Code => write!(out, "{}", &src[&tok])?,
+                Code => write!(out, "{}", &self.source[&tok])?,
                 Block => {
                     assert!(self.object.is_some());
                     self.ident = Some(tok);
                     write!(out, "sub vcl_init {{\n\tnew {} = {}(",
-                        &src[&tok], &src[&self.object.unwrap()])?;
+                        &self.source[&tok],
+                        &self.source[&self.object.unwrap()])?;
                 }
                 Value => {
                     assert!(self.field.is_some());
                     assert!(self.symbol.is_some());
-                    assert_eq!(&src[&tok], "=");
-                    write!(out, "\t\t{} = ", &src[&self.field.unwrap()])?;
+                    assert_eq!(&self.source[&tok], "=");
+                    write!(out, "\t\t{} = ",
+                        &self.source[&self.field.unwrap()])?;
                     self.symbol = None;
                 }
-                EndOfField => write!(out, "{}", &src[&tok])?,
+                EndOfField => write!(out, "{}", &self.source[&tok])?,
                 Arguments => {
                     assert!(self.ident.is_some());
                     assert!(self.method.is_some());
                     match self.symbol {
                         Some(_) => {
                             self.symbol = None;
-                            write!(out, "\t{}.{}(", &src[&self.ident.unwrap()],
-                                &src[&self.method.unwrap()])?;
+                            write!(out, "\t{}.{}(",
+                                &self.source[&self.ident.unwrap()],
+                                &self.source[&self.method.unwrap()])?;
                         }
-                        None => write!(out, "{}", &src[&tok])?,
+                        None => write!(out, "{}", &self.source[&tok])?,
                     }
                 }
                 EndOfMethod => {
@@ -292,7 +297,7 @@ fn main() {
         Err(e) => cli::fail(e),
     };
 
-    match Preprocessor::new().exec(&src, out) {
+    match Preprocessor::new(&src).exec(out) {
         Err(SyntaxError(tok)) => {
             match tok.lexeme {
                 Bad(msg) => {
