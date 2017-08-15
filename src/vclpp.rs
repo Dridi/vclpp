@@ -93,6 +93,17 @@ impl Preprocessor {
         }
     }
 
+    fn reset(&mut self) {
+        self.expect = Code;
+        self.groups = 0;
+        self.blocks = 0;
+        self.ident = None;
+        self.object = None;
+        self.symbol = None;
+        self.field = None;
+        self.method = None;
+    }
+
     fn balance(&mut self, tok: Token) -> Option<&'static str> {
         assert!(self.groups >= 0);
         assert!(self.blocks >= 0);
@@ -133,22 +144,22 @@ impl Preprocessor {
         Err(SyntaxError(tok.turn_bad(msg)))
     }
 
-    fn exec<'a, W: Write>(src: &'a String, mut out: W) -> PvclResult {
-        let mut pp = Preprocessor::new();
+    fn exec<'a, W: Write>(&mut self, src: &'a String, mut out: W)
+    -> PvclResult {
         let mut last_tok: Option<Token> = None;
         for t in Tokenizer::new(src.chars()) {
-            let tok = match pp.balance(t) {
+            let tok = match self.balance(t) {
                 Some(msg) => t.turn_bad(msg),
                 None => t,
             };
             last_tok = Some(tok);
-            match (pp.expect, pp.blocks, pp.groups, tok.lexeme) {
+            match (self.expect, self.blocks, self.groups, tok.lexeme) {
                 (_, _, _, Bad(s)) => Err(SyntaxError(tok.turn_bad(s)))?,
 
                 (Code, 0, _, Name(0)) => (),
                 (Code, 0, _, Name(1)) => {
-                    pp.object = Some(tok);
-                    pp.expect = Ident;
+                    self.object = Some(tok);
+                    self.expect = Ident;
                 }
                 (Code, 0, _, Name(_)) => {
                     Err(SyntaxError(tok.turn_bad("invalid identifier")))?
@@ -160,109 +171,109 @@ impl Preprocessor {
                 (_, _, _, CComment) |
                 (_, _, _, CxxComment) => continue,
 
-                (Ident, _, _, Name(0)) => pp.expect = Block,
+                (Ident, _, _, Name(0)) => self.expect = Block,
                 (Ident, _, _, Blank) => continue,
-                (Ident, _, _, _) => pp.error(tok)?,
+                (Ident, _, _, _) => self.error(tok)?,
 
-                (Block, _, _, OpeningBlock) => pp.expect = Dot,
+                (Block, _, _, OpeningBlock) => self.expect = Dot,
                 (Block, _, _, Blank) => continue,
-                (Block, _, _, _) => pp.error(tok)?,
+                (Block, _, _, _) => self.error(tok)?,
 
                 (Dot, _, _, ClosingBlock) => {
-                    if pp.field.is_none() && pp.method.is_none() {
+                    if self.field.is_none() && self.method.is_none() {
                         write!(out, ");\n")?;
                     }
-                    assert!(pp.groups == 0);
-                    assert!(pp.blocks == 0);
-                    pp = Preprocessor::new();
+                    assert!(self.groups == 0);
+                    assert!(self.blocks == 0);
+                    self.reset();
                 }
-                (Dot, _, _, Prop) => pp.expect = Member,
+                (Dot, _, _, Prop) => self.expect = Member,
                 (Dot, _, _, Blank) => continue,
-                (Dot, _, _, _) => pp.error(tok)?,
+                (Dot, _, _, _) => self.error(tok)?,
 
                 (Member, _, _, Name(0)) => {
-                    pp.symbol = Some(tok);
-                    pp.expect = FieldOrMethod;
+                    self.symbol = Some(tok);
+                    self.expect = FieldOrMethod;
                 }
-                (Member, _, _, Name(_)) => pp.error(tok)?,
+                (Member, _, _, Name(_)) => self.error(tok)?,
                 (Member, _, _, Blank) => continue,
-                (Member, _, _, _) => pp.error(tok)?,
+                (Member, _, _, _) => self.error(tok)?,
 
                 (FieldOrMethod, _, _, Delim('=')) => {
-                    if pp.method.is_some() {
+                    if self.method.is_some() {
                         return Err(SyntaxError(
                             tok.turn_bad("field after methods")));
                     }
-                    if pp.field.is_some() {
+                    if self.field.is_some() {
                         write!(out, ",")?;
                     }
                     write!(out, "\n")?;
-                    pp.field = pp.symbol;
-                    pp.expect = Value;
+                    self.field = self.symbol;
+                    self.expect = Value;
                 }
                 (FieldOrMethod, _, _, OpeningGroup) => {
-                    assert!(pp.groups == 1);
-                    if pp.method.is_none() {
+                    assert!(self.groups == 1);
+                    if self.method.is_none() {
                         write!(out, ");\n")?;
                     }
-                    pp.method = pp.symbol;
-                    pp.expect = Arguments;
+                    self.method = self.symbol;
+                    self.expect = Arguments;
                 }
                 (FieldOrMethod, _, _, Blank) => continue,
-                (FieldOrMethod, _, _, _) => pp.error(tok)?,
+                (FieldOrMethod, _, _, _) => self.error(tok)?,
 
-                (Value, _, 0, Delim(';')) => pp.error(tok)?,
+                (Value, _, 0, Delim(';')) => self.error(tok)?,
                 (Value, _, _, Blank) => continue,
-                (Value, _, _, _) => pp.expect = EndOfField,
+                (Value, _, _, _) => self.expect = EndOfField,
 
-                (EndOfField, _, 0, Delim(';')) => pp.expect = Dot,
+                (EndOfField, _, 0, Delim(';')) => self.expect = Dot,
                 (EndOfField, _, _, _) => (),
 
-                (Arguments, _, 0, ClosingGroup) => pp.expect = EndOfMethod,
+                (Arguments, _, 0, ClosingGroup) => self.expect = EndOfMethod,
                 // XXX: insufficient arguments parsing
                 (Arguments, _, _, _) => (),
 
-                (SemiColon, _, 0, Delim(';')) => pp.expect = Dot,
-                (SemiColon, _, _, _) => pp.error(tok)?,
+                (SemiColon, _, 0, Delim(';')) => self.expect = Dot,
+                (SemiColon, _, _, _) => self.error(tok)?,
 
                 (_, _, _, _) => unreachable!(),
             }
-            match pp.expect {
+            match self.expect {
                 Code => write!(out, "{}", &src[&tok])?,
                 Block => {
-                    assert!(pp.object.is_some());
-                    pp.ident = Some(tok);
+                    assert!(self.object.is_some());
+                    self.ident = Some(tok);
                     write!(out, "sub vcl_init {{\n\tnew {} = {}(",
-                        &src[&tok], &src[&pp.object.unwrap()])?;
+                        &src[&tok], &src[&self.object.unwrap()])?;
                 }
                 Value => {
-                    assert!(pp.field.is_some());
-                    assert!(pp.symbol.is_some());
+                    assert!(self.field.is_some());
+                    assert!(self.symbol.is_some());
                     assert_eq!(&src[&tok], "=");
-                    write!(out, "\t\t{} = ", &src[&pp.field.unwrap()])?;
-                    pp.symbol = None;
+                    write!(out, "\t\t{} = ", &src[&self.field.unwrap()])?;
+                    self.symbol = None;
                 }
                 EndOfField => write!(out, "{}", &src[&tok])?,
                 Arguments => {
-                    assert!(pp.ident.is_some());
-                    assert!(pp.method.is_some());
-                    match pp.symbol {
+                    assert!(self.ident.is_some());
+                    assert!(self.method.is_some());
+                    match self.symbol {
                         Some(_) => {
-                            pp.symbol = None;
-                            write!(out, "\t{}.{}(", &src[&pp.ident.unwrap()],
-                                &src[&pp.method.unwrap()])?;
+                            self.symbol = None;
+                            write!(out, "\t{}.{}(", &src[&self.ident.unwrap()],
+                                &src[&self.method.unwrap()])?;
                         }
                         None => write!(out, "{}", &src[&tok])?,
                     }
                 }
                 EndOfMethod => {
-                    pp.expect = SemiColon;
+                    self.expect = SemiColon;
                     write!(out, ");\n")?;
                 }
                 _ => (),
             };
         }
-        if pp.expect.pvcl() || pp.groups != 0 || pp.blocks != 0 {
+        if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
             assert!(last_tok.is_some());
             Err(SyntaxError(last_tok.unwrap().turn_bad("incomplete VCL")))?;
         }
@@ -279,7 +290,7 @@ fn main() {
         Err(e) => cli::fail(e),
     };
 
-    match Preprocessor::exec(&src, out) {
+    match Preprocessor::new().exec(&src, out) {
         Err(SyntaxError(tok)) => {
             match tok.lexeme {
                 Bad(msg) => {
