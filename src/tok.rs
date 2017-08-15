@@ -124,6 +124,7 @@ enum Handling {
     Done,
 }
 
+#[must_use = "tokenizers are lazy and do nothing unless consumed"]
 pub struct Tokenizer<'a> {
     chars: Chars<'a>,
     lexeme: Option<Lexeme>,
