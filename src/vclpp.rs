@@ -34,7 +34,7 @@ use PvclError::*;
 type PvclResult = Result<(), PvclError>;
 
 enum PvclError {
-    SyntaxError(Token, &'static str),
+    SyntaxError(Token),
     IoError(Error),
 }
 
@@ -130,7 +130,7 @@ impl Preprocessor {
             Value => "expected value",
             SemiColon => "expected ';'",
         };
-        Err(SyntaxError(tok, msg))
+        Err(SyntaxError(tok.turn_bad(msg)))
     }
 
     fn exec<'a, W: Write>(src: &'a String, mut out: W) -> PvclResult {
@@ -143,7 +143,7 @@ impl Preprocessor {
             };
             last_tok = Some(tok);
             match (pp.expect, pp.blocks, pp.groups, tok.lexeme) {
-                (_, _, _, Bad(s)) => Err(SyntaxError(tok, s))?,
+                (_, _, _, Bad(s)) => Err(SyntaxError(tok.turn_bad(s)))?,
 
                 (Code, 0, _, Name(0)) => (),
                 (Code, 0, _, Name(1)) => {
@@ -151,7 +151,7 @@ impl Preprocessor {
                     pp.expect = Ident;
                 }
                 (Code, 0, _, Name(_)) => {
-                    Err(SyntaxError(tok, "invalid identifier"))?
+                    Err(SyntaxError(tok.turn_bad("invalid identifier")))?
                 }
                 (Code, _, _, _) => (),
 
@@ -190,7 +190,8 @@ impl Preprocessor {
 
                 (FieldOrMethod, _, _, Delim('=')) => {
                     if pp.method.is_some() {
-                        return Err(SyntaxError(tok, "field after methods"));
+                        return Err(SyntaxError(
+                            tok.turn_bad("field after methods")));
                     }
                     if pp.field.is_some() {
                         write!(out, ",")?;
@@ -263,7 +264,7 @@ impl Preprocessor {
         }
         if pp.expect.pvcl() || pp.groups != 0 || pp.blocks != 0 {
             assert!(last_tok.is_some());
-            Err(SyntaxError(last_tok.unwrap(), "incomplete VCL"))?;
+            Err(SyntaxError(last_tok.unwrap().turn_bad("incomplete VCL")))?;
         }
         out.flush()?;
         Ok(())
@@ -279,9 +280,14 @@ fn main() {
     };
 
     match Preprocessor::exec(&src, out) {
-        Err(SyntaxError(tok, msg)) => {
-            cli::fail(format!("{}, Line {}, Pos {}",
-                msg, tok.start.line, tok.start.column));
+        Err(SyntaxError(tok)) => {
+            match tok.lexeme {
+                Bad(msg) => {
+                    cli::fail(format!("{}, Line {}, Pos {}",
+                        msg, tok.start.line, tok.start.column));
+                }
+                _ => unreachable!(),
+            }
         }
         Err(IoError(e)) => cli::fail(e),
         Ok(_) => ()
