@@ -17,7 +17,7 @@
 varnishtest "hello world"
 
 shell {
-vclpp >hello.vcl <<EOF
+vclpp <<EOF | tee hello.vcl
 vcl 4.0;
 
 import directors;
