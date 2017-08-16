@@ -53,6 +53,8 @@ impl Expected {
 
 struct Preprocessor<'pp> {
     source: &'pp String,
+    output: Vec<Token>,
+    broken: bool,
     expect: Expected,
     groups: isize,
     blocks: isize,
@@ -68,6 +70,8 @@ impl<'pp> Preprocessor<'pp> {
     fn new(source: &'pp String) -> Preprocessor<'pp> {
         Preprocessor {
             source: source,
+            output: vec!(),
+            broken: false,
             expect: Code,
             groups: 0,
             blocks: 0,
@@ -89,14 +93,22 @@ impl<'pp> Preprocessor<'pp> {
         self.symbol = None;
         self.field = None;
         self.method = None;
-        // NB: don't reset self.token
+        // NB: only reset parsing state
     }
 
-    fn balance(&mut self, tok: &Token) -> Option<&'static str> {
+    fn push(&mut self, tok: Token) {
+        if !tok.lexeme.is_valid() {
+            self.broken = true;
+        }
+        self.output.push(tok);
+    }
+
+    fn balance(&mut self, tok: &Token) {
         assert!(self.groups >= 0);
         assert!(self.blocks >= 0);
         if tok.lexeme == OpeningBlock && self.groups > 0 {
-            return Some("opening a block inside an expression");
+            self.push(tok.turn_bad("opening a block inside an expression"));
+            return;
         }
 
         match tok.lexeme {
@@ -108,14 +120,11 @@ impl<'pp> Preprocessor<'pp> {
         }
 
         if self.groups < 0 || self.blocks < 0 {
-            Some("unbalanced brackets")
-        }
-        else {
-            None
+            self.push(tok.turn_bad("unbalanced brackets"));
         }
     }
 
-    fn error(&self, tok: Token) -> Vec<Token> {
+    fn error(&mut self, tok: Token) {
         let msg = match self.expect {
             Code |
             Arguments |
@@ -129,13 +138,15 @@ impl<'pp> Preprocessor<'pp> {
             Value => "expected value",
             SemiColon => "expected ';'",
         };
-        vec!(tok.turn_bad(msg))
+        self.push(tok.turn_bad(msg));
     }
 
-    fn process(&mut self, tok: Token) -> Vec<Token> {
-        let mut synth = vec!();
+    fn process(&mut self, tok: Token) {
         match (self.expect, self.blocks, self.groups, tok.lexeme) {
-            (_, _, _, Bad(_)) => return vec!(tok),
+            (_, _, _, Bad(_)) => {
+                self.push(tok);
+                return;
+            }
 
             (Code, 0, _, Name(0)) => (),
             (Code, 0, _, Name(1)) => {
@@ -143,35 +154,36 @@ impl<'pp> Preprocessor<'pp> {
                 self.expect = Ident;
             }
             (Code, 0, _, Name(_)) => {
-                return vec!(tok.turn_bad("invalid identifier"));
+                self.push(tok.turn_bad("invalid identifier"));
+                return;
             }
             (Code, _, _, _) => (),
 
             // NB. Abandon comments inside preprocessed code
             (_, _, _, Comment) |
             (_, _, _, CComment) |
-            (_, _, _, CxxComment) => return synth,
+            (_, _, _, CxxComment) => return,
 
             (Ident, _, _, Name(0)) => self.expect = Block,
-            (Ident, _, _, Blank) => return synth,
+            (Ident, _, _, Blank) => return,
             (Ident, _, _, _) => return self.error(tok),
 
             (Block, _, _, OpeningBlock) => self.expect = Dot,
-            (Block, _, _, Blank) => return synth,
+            (Block, _, _, Blank) => return,
             (Block, _, _, _) => return self.error(tok),
 
             (Dot, _, _, ClosingBlock) => {
                 if self.field.is_none() && self.method.is_none() {
-                    synth.push(Token::raw(ClosingGroup, ")"));
-                    synth.push(Token::raw(Delim(';'), ";"));
-                    synth.push(Token::raw(Blank, "\n"));
+                    self.push(Token::raw(ClosingGroup, ")"));
+                    self.push(Token::raw(Delim(';'), ";"));
+                    self.push(Token::raw(Blank, "\n"));
                 }
                 assert!(self.groups == 0);
                 assert!(self.blocks == 0);
                 self.reset();
             }
             (Dot, _, _, Prop) => self.expect = Member,
-            (Dot, _, _, Blank) => return synth,
+            (Dot, _, _, Blank) => return,
             (Dot, _, _, _) => return self.error(tok),
 
             (Member, _, _, Name(0)) => {
@@ -179,35 +191,36 @@ impl<'pp> Preprocessor<'pp> {
                 self.expect = FieldOrMethod;
             }
             (Member, _, _, Name(_)) => return self.error(tok),
-            (Member, _, _, Blank) => return synth,
+            (Member, _, _, Blank) => return,
             (Member, _, _, _) => return self.error(tok),
 
             (FieldOrMethod, _, _, Delim('=')) => {
                 if self.method.is_some() {
-                    return vec!(tok.turn_bad("field after methods"));
+                    self.push(tok.turn_bad("field after methods"));
+                    return;
                 }
                 if self.field.is_some() {
-                    synth.push(Token::raw(Delim(','), ","));
+                    self.push(Token::raw(Delim(','), ","));
                 }
-                synth.push(Token::raw(Blank, "\n"));
+                self.push(Token::raw(Blank, "\n"));
                 self.field = self.symbol.clone();
                 self.expect = Value;
             }
             (FieldOrMethod, _, _, OpeningGroup) => {
                 assert!(self.groups == 1);
                 if self.method.is_none() {
-                    synth.push(Token::raw(ClosingGroup, ")"));
-                    synth.push(Token::raw(Delim(';'), ";"));
-                    synth.push(Token::raw(Blank, "\n"));
+                    self.push(Token::raw(ClosingGroup, ")"));
+                    self.push(Token::raw(Delim(';'), ";"));
+                    self.push(Token::raw(Blank, "\n"));
                 }
                 self.method = self.symbol.clone();
                 self.expect = Arguments;
             }
-            (FieldOrMethod, _, _, Blank) => return synth,
+            (FieldOrMethod, _, _, Blank) => return,
             (FieldOrMethod, _, _, _) => return self.error(tok),
 
             (Value, _, 0, Delim(';')) => return self.error(tok),
-            (Value, _, _, Blank) => return synth,
+            (Value, _, _, Blank) => return,
             (Value, _, _, _) => self.expect = EndOfField,
 
             (EndOfField, _, 0, Delim(';')) => self.expect = Dot,
@@ -223,39 +236,39 @@ impl<'pp> Preprocessor<'pp> {
             (_, _, _, _) => unreachable!(),
         }
         match self.expect {
-            Code => synth.push(tok),
+            Code => self.push(tok),
             Block => {
                 assert!(self.object.is_some());
                 self.ident = Some(tok.clone());
                 let object = self.object.clone().unwrap();
-                synth.push(Token::raw(Name(0), "sub"));
-                synth.push(Token::raw(Blank, " "));
-                synth.push(Token::raw(Name(0), "vcl_init"));
-                synth.push(Token::raw(Blank, " "));
-                synth.push(Token::raw(OpeningBlock, "{"));
-                synth.push(Token::raw(Blank, "\n\t"));
-                synth.push(Token::raw(Name(0), "new"));
-                synth.push(Token::raw(Blank, " "));
-                synth.push(tok.to_synth(self.source));
-                synth.push(Token::raw(Blank, " "));
-                synth.push(Token::raw(Delim('='), "="));
-                synth.push(Token::raw(Blank, " "));
-                synth.push(object.to_synth(self.source));
-                synth.push(Token::raw(OpeningGroup, "("));
+                self.push(Token::raw(Name(0), "sub"));
+                self.push(Token::raw(Blank, " "));
+                self.push(Token::raw(Name(0), "vcl_init"));
+                self.push(Token::raw(Blank, " "));
+                self.push(Token::raw(OpeningBlock, "{"));
+                self.push(Token::raw(Blank, "\n\t"));
+                self.push(Token::raw(Name(0), "new"));
+                self.push(Token::raw(Blank, " "));
+                self.push(tok.to_synth(self.source));
+                self.push(Token::raw(Blank, " "));
+                self.push(Token::raw(Delim('='), "="));
+                self.push(Token::raw(Blank, " "));
+                self.push(object.to_synth(self.source));
+                self.push(Token::raw(OpeningGroup, "("));
             }
             Value => {
                 assert!(self.field.is_some());
                 assert!(self.symbol.is_some());
                 assert_eq!(tok.as_str(&self.source), "=");
                 let field = self.field.clone().unwrap();
-                synth.push(Token::raw(Blank, "\t\t"));
-                synth.push(field.to_synth(self.source));
-                synth.push(Token::raw(Blank, " "));
-                synth.push(Token::raw(Delim('='), "="));
-                synth.push(Token::raw(Blank, " "));
+                self.push(Token::raw(Blank, "\t\t"));
+                self.push(field.to_synth(self.source));
+                self.push(Token::raw(Blank, " "));
+                self.push(Token::raw(Delim('='), "="));
+                self.push(Token::raw(Blank, " "));
                 self.symbol = None;
             }
-            EndOfField => synth.push(tok),
+            EndOfField => self.push(tok),
             Arguments => {
                 assert!(self.ident.is_some());
                 assert!(self.method.is_some());
@@ -268,40 +281,38 @@ impl<'pp> Preprocessor<'pp> {
                         sym += ident.as_str(&self.source);
                         sym.push('.');
                         sym += method.as_str(&self.source);
-                        synth.push(Token::raw(Blank, "\t"));
-                        synth.push(Token::dyn(Name(1), sym));
-                        synth.push(Token::raw(OpeningGroup, "("));
+                        self.push(Token::raw(Blank, "\t"));
+                        self.push(Token::dyn(Name(1), sym));
+                        self.push(Token::raw(OpeningGroup, "("));
                     }
-                    None => synth.push(tok),
+                    None => self.push(tok),
                 }
             }
             EndOfMethod => {
                 self.expect = SemiColon;
-                synth.push(Token::raw(ClosingGroup, ")"));
-                synth.push(Token::raw(Delim(';'), ";"));
-                synth.push(Token::raw(Blank, "\n"));
+                self.push(Token::raw(ClosingGroup, ")"));
+                self.push(Token::raw(Delim(';'), ";"));
+                self.push(Token::raw(Blank, "\n"));
             }
             _ => (),
         };
-        synth
     }
 
     fn exec<'a>(&mut self) -> Vec<Token> {
-        let mut tokens: Vec<Token> = vec!();
-        for t in Tokenizer::new(self.source.chars()) {
-            let tok = match self.balance(&t) {
-                Some(msg) => t.turn_bad(msg),
-                None => t,
-            };
+        for tok in Tokenizer::new(self.source.chars()) {
+            self.balance(&tok);
             self.token = Some(tok.clone());
-            tokens.append(&mut self.process(tok));
+            if self.broken {
+                break;
+            }
+            self.process(tok);
         }
         if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
             assert!(self.token.is_some());
             let token = self.token.clone().unwrap();
-            tokens.push(token.turn_bad("incomplete VCL"));
+            self.push(token.turn_bad("incomplete VCL"));
         }
-        tokens
+        self.output.clone() // XXX: temporary clone
     }
 }
 
