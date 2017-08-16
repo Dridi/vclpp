@@ -95,13 +95,13 @@ impl Lexeme {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 enum Synthetic {
     Raw(&'static str),
     Dyn, // XXX: temporary broken
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Token {
     pub lexeme: Lexeme,
     pub start: Position,

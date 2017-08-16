@@ -156,7 +156,7 @@ impl<'pp> Preprocessor<'pp> {
 
             (Code, 0, _, Name(0)) => (),
             (Code, 0, _, Name(1)) => {
-                self.object = Some(tok);
+                self.object = Some(tok.clone());
                 self.expect = Ident;
             }
             (Code, 0, _, Name(_)) => {
@@ -192,7 +192,7 @@ impl<'pp> Preprocessor<'pp> {
             (Dot, _, _, _) => return self.error(tok),
 
             (Member, _, _, Name(0)) => {
-                self.symbol = Some(tok);
+                self.symbol = Some(tok.clone());
                 self.expect = FieldOrMethod;
             }
             (Member, _, _, Name(_)) => return self.error(tok),
@@ -207,7 +207,7 @@ impl<'pp> Preprocessor<'pp> {
                     synth.push(Token::raw(Delim(','), ","));
                 }
                 synth.push(Token::raw(Blank, "\n"));
-                self.field = self.symbol;
+                self.field = self.symbol.clone();
                 self.expect = Value;
             }
             (FieldOrMethod, _, _, OpeningGroup) => {
@@ -217,7 +217,7 @@ impl<'pp> Preprocessor<'pp> {
                     synth.push(Token::raw(Delim(';'), ";"));
                     synth.push(Token::raw(Blank, "\n"));
                 }
-                self.method = self.symbol;
+                self.method = self.symbol.clone();
                 self.expect = Arguments;
             }
             (FieldOrMethod, _, _, Blank) => return synth,
@@ -243,7 +243,8 @@ impl<'pp> Preprocessor<'pp> {
             Code => synth.push(tok),
             Block => {
                 assert!(self.object.is_some());
-                self.ident = Some(tok);
+                self.ident = Some(tok.clone());
+                let object = self.object.clone().unwrap();
                 synth.push(Token::raw(Name(0), "sub"));
                 synth.push(Token::raw(Blank, " "));
                 synth.push(Token::raw(Name(0), "vcl_init"));
@@ -256,15 +257,16 @@ impl<'pp> Preprocessor<'pp> {
                 synth.push(Token::raw(Blank, " "));
                 synth.push(Token::raw(Delim('='), "="));
                 synth.push(Token::raw(Blank, " "));
-                synth.push(self.object.unwrap().to_synth(self.source));
+                synth.push(object.to_synth(self.source));
                 synth.push(Token::raw(OpeningGroup, "("));
             }
             Value => {
                 assert!(self.field.is_some());
                 assert!(self.symbol.is_some());
                 assert_eq!(&self.source[&tok], "=");
+                let field = self.field.clone().unwrap();
                 synth.push(Token::raw(Blank, "\t\t"));
-                synth.push(self.field.unwrap().to_synth(self.source));
+                synth.push(field.to_synth(self.source));
                 synth.push(Token::raw(Blank, " "));
                 synth.push(Token::raw(Delim('='), "="));
                 synth.push(Token::raw(Blank, " "));
@@ -277,10 +279,12 @@ impl<'pp> Preprocessor<'pp> {
                 match self.symbol {
                     Some(_) => {
                         self.symbol = None;
+                        let ident = self.ident.clone().unwrap();
+                        let method = self.method.clone().unwrap();
                         let mut sym = String::new();
-                        sym += &self.source[&self.ident.unwrap()];
+                        sym += &self.source[&ident];
                         sym.push('.');
-                        sym += &self.source[&self.method.unwrap()];
+                        sym += &self.source[&method];
                         synth.push(Token::raw(Blank, "\t"));
                         synth.push(Token::dyn(Name(1), sym));
                         synth.push(Token::raw(OpeningGroup, "("));
@@ -306,7 +310,7 @@ impl<'pp> Preprocessor<'pp> {
                 Some(msg) => t.turn_bad(msg),
                 None => t,
             };
-            self.token = Some(tok);
+            self.token = Some(tok.clone());
             for t2 in self.process(tok) {
                 match t2.lexeme {
                     Bad(_) => Err(SyntaxError(t2))?,
@@ -316,7 +320,8 @@ impl<'pp> Preprocessor<'pp> {
         }
         if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
             assert!(self.token.is_some());
-            Err(SyntaxError(self.token.unwrap().turn_bad("incomplete VCL")))?;
+            let token = self.token.clone().unwrap();
+            Err(SyntaxError(token.turn_bad("incomplete VCL")))?;
         }
         out.flush()?;
         Ok(())
