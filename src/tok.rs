@@ -17,7 +17,6 @@
  */
 
 use std::fmt;
-use std::ops::Index;
 use std::str::Chars;
 
 use self::Handling::*;
@@ -139,19 +138,15 @@ impl Token {
     }
 
     pub fn to_synth(&self, src: &String) -> Self {
-        Self::dyn(self.lexeme, src[self].to_string())
+        Self::dyn(self.lexeme, self.as_str(src).to_string())
     }
-}
 
-impl<'a> Index<&'a Token> for String {
-    type Output = str;
-
-    fn index(&self, tok: &'a Token) -> &str {
-        assert!(tok.lexeme.is_valid());
-        match tok.synth {
+    pub fn as_str<'a>(&self, src: &'a String) -> &'a str {
+        assert!(self.lexeme.is_valid());
+        match self.synth {
             Some(Raw(msg)) => msg,
             Some(Dyn) => unimplemented!(),
-            None => &self.as_str()[tok.start.offset..tok.end.offset],
+            None => &src.as_str()[self.start.offset..self.end.offset],
         }
     }
 }

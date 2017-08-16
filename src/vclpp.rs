@@ -263,7 +263,7 @@ impl<'pp> Preprocessor<'pp> {
             Value => {
                 assert!(self.field.is_some());
                 assert!(self.symbol.is_some());
-                assert_eq!(&self.source[&tok], "=");
+                assert_eq!(tok.as_str(&self.source), "=");
                 let field = self.field.clone().unwrap();
                 synth.push(Token::raw(Blank, "\t\t"));
                 synth.push(field.to_synth(self.source));
@@ -282,9 +282,9 @@ impl<'pp> Preprocessor<'pp> {
                         let ident = self.ident.clone().unwrap();
                         let method = self.method.clone().unwrap();
                         let mut sym = String::new();
-                        sym += &self.source[&ident];
+                        sym += ident.as_str(&self.source);
                         sym.push('.');
-                        sym += &self.source[&method];
+                        sym += method.as_str(&self.source);
                         synth.push(Token::raw(Blank, "\t"));
                         synth.push(Token::dyn(Name(1), sym));
                         synth.push(Token::raw(OpeningGroup, "("));
@@ -314,7 +314,7 @@ impl<'pp> Preprocessor<'pp> {
             for t2 in self.process(tok) {
                 match t2.lexeme {
                     Bad(_) => Err(SyntaxError(t2))?,
-                    _ => write!(out, "{}", &self.source[&t2])?,
+                    _ => write!(out, "{}", t2.as_str(&self.source))?,
                 }
             }
         }
