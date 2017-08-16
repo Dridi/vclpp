@@ -132,7 +132,7 @@ impl<'pp> Preprocessor<'pp> {
         }
     }
 
-    fn error(&self, tok: Token) -> PvclResult {
+    fn error(&self, tok: Token) -> Vec<Token> {
         let msg = match self.expect {
             Code |
             Arguments |
@@ -146,7 +146,157 @@ impl<'pp> Preprocessor<'pp> {
             Value => "expected value",
             SemiColon => "expected ';'",
         };
-        Err(SyntaxError(tok.turn_bad(msg)))
+        vec!(tok.turn_bad(msg))
+    }
+
+    fn process(&mut self, tok: Token) -> Vec<Token> {
+        let mut synth = vec!();
+        match (self.expect, self.blocks, self.groups, tok.lexeme) {
+            (_, _, _, Bad(_)) => return vec!(tok),
+
+            (Code, 0, _, Name(0)) => (),
+            (Code, 0, _, Name(1)) => {
+                self.object = Some(tok);
+                self.expect = Ident;
+            }
+            (Code, 0, _, Name(_)) => {
+                return vec!(tok.turn_bad("invalid identifier"));
+            }
+            (Code, _, _, _) => (),
+
+            // NB. Abandon comments inside preprocessed code
+            (_, _, _, Comment) |
+            (_, _, _, CComment) |
+            (_, _, _, CxxComment) => return synth,
+
+            (Ident, _, _, Name(0)) => self.expect = Block,
+            (Ident, _, _, Blank) => return synth,
+            (Ident, _, _, _) => return self.error(tok),
+
+            (Block, _, _, OpeningBlock) => self.expect = Dot,
+            (Block, _, _, Blank) => return synth,
+            (Block, _, _, _) => return self.error(tok),
+
+            (Dot, _, _, ClosingBlock) => {
+                if self.field.is_none() && self.method.is_none() {
+                    synth.push(Token::raw(ClosingGroup, ")"));
+                    synth.push(Token::raw(Delim(';'), ";"));
+                    synth.push(Token::raw(Blank, "\n"));
+                }
+                assert!(self.groups == 0);
+                assert!(self.blocks == 0);
+                self.reset();
+            }
+            (Dot, _, _, Prop) => self.expect = Member,
+            (Dot, _, _, Blank) => return synth,
+            (Dot, _, _, _) => return self.error(tok),
+
+            (Member, _, _, Name(0)) => {
+                self.symbol = Some(tok);
+                self.expect = FieldOrMethod;
+            }
+            (Member, _, _, Name(_)) => return self.error(tok),
+            (Member, _, _, Blank) => return synth,
+            (Member, _, _, _) => return self.error(tok),
+
+            (FieldOrMethod, _, _, Delim('=')) => {
+                if self.method.is_some() {
+                    return vec!(tok.turn_bad("field after methods"));
+                }
+                if self.field.is_some() {
+                    synth.push(Token::raw(Delim(','), ","));
+                }
+                synth.push(Token::raw(Blank, "\n"));
+                self.field = self.symbol;
+                self.expect = Value;
+            }
+            (FieldOrMethod, _, _, OpeningGroup) => {
+                assert!(self.groups == 1);
+                if self.method.is_none() {
+                    synth.push(Token::raw(ClosingGroup, ")"));
+                    synth.push(Token::raw(Delim(';'), ";"));
+                    synth.push(Token::raw(Blank, "\n"));
+                }
+                self.method = self.symbol;
+                self.expect = Arguments;
+            }
+            (FieldOrMethod, _, _, Blank) => return synth,
+            (FieldOrMethod, _, _, _) => return self.error(tok),
+
+            (Value, _, 0, Delim(';')) => return self.error(tok),
+            (Value, _, _, Blank) => return synth,
+            (Value, _, _, _) => self.expect = EndOfField,
+
+            (EndOfField, _, 0, Delim(';')) => self.expect = Dot,
+            (EndOfField, _, _, _) => (),
+
+            (Arguments, _, 0, ClosingGroup) => self.expect = EndOfMethod,
+            // XXX: insufficient arguments parsing
+            (Arguments, _, _, _) => (),
+
+            (SemiColon, _, 0, Delim(';')) => self.expect = Dot,
+            (SemiColon, _, _, _) => return self.error(tok),
+
+            (_, _, _, _) => unreachable!(),
+        }
+        match self.expect {
+            Code => synth.push(tok),
+            Block => {
+                assert!(self.object.is_some());
+                self.ident = Some(tok);
+                synth.push(Token::raw(Name(0), "sub"));
+                synth.push(Token::raw(Blank, " "));
+                synth.push(Token::raw(Name(0), "vcl_init"));
+                synth.push(Token::raw(Blank, " "));
+                synth.push(Token::raw(OpeningBlock, "{"));
+                synth.push(Token::raw(Blank, "\n\t"));
+                synth.push(Token::raw(Name(0), "new"));
+                synth.push(Token::raw(Blank, " "));
+                synth.push(tok.to_synth(self.source));
+                synth.push(Token::raw(Blank, " "));
+                synth.push(Token::raw(Delim('='), "="));
+                synth.push(Token::raw(Blank, " "));
+                synth.push(self.object.unwrap().to_synth(self.source));
+                synth.push(Token::raw(OpeningGroup, "("));
+            }
+            Value => {
+                assert!(self.field.is_some());
+                assert!(self.symbol.is_some());
+                assert_eq!(&self.source[&tok], "=");
+                synth.push(Token::raw(Blank, "\t\t"));
+                synth.push(self.field.unwrap().to_synth(self.source));
+                synth.push(Token::raw(Blank, " "));
+                synth.push(Token::raw(Delim('='), "="));
+                synth.push(Token::raw(Blank, " "));
+                self.symbol = None;
+            }
+            EndOfField => synth.push(tok),
+            Arguments => {
+                assert!(self.ident.is_some());
+                assert!(self.method.is_some());
+                match self.symbol {
+                    Some(_) => {
+                        self.symbol = None;
+                        let mut sym = String::new();
+                        sym += &self.source[&self.ident.unwrap()];
+                        sym.push('.');
+                        sym += &self.source[&self.method.unwrap()];
+                        synth.push(Token::raw(Blank, "\t"));
+                        synth.push(Token::dyn(Name(1), sym));
+                        synth.push(Token::raw(OpeningGroup, "("));
+                    }
+                    None => synth.push(tok),
+                }
+            }
+            EndOfMethod => {
+                self.expect = SemiColon;
+                synth.push(Token::raw(ClosingGroup, ")"));
+                synth.push(Token::raw(Delim(';'), ";"));
+                synth.push(Token::raw(Blank, "\n"));
+            }
+            _ => (),
+        };
+        synth
     }
 
     fn exec<'a, W: Write>(&mut self, mut out: W)
@@ -157,128 +307,12 @@ impl<'pp> Preprocessor<'pp> {
                 None => t,
             };
             self.token = Some(tok);
-            match (self.expect, self.blocks, self.groups, tok.lexeme) {
-                (_, _, _, Bad(s)) => Err(SyntaxError(tok.turn_bad(s)))?,
-
-                (Code, 0, _, Name(0)) => (),
-                (Code, 0, _, Name(1)) => {
-                    self.object = Some(tok);
-                    self.expect = Ident;
+            for t2 in self.process(tok) {
+                match t2.lexeme {
+                    Bad(_) => Err(SyntaxError(t2))?,
+                    _ => write!(out, "{}", &self.source[&t2])?,
                 }
-                (Code, 0, _, Name(_)) => {
-                    Err(SyntaxError(tok.turn_bad("invalid identifier")))?
-                }
-                (Code, _, _, _) => (),
-
-                // NB. Abandon comments inside preprocessed code
-                (_, _, _, Comment) |
-                (_, _, _, CComment) |
-                (_, _, _, CxxComment) => continue,
-
-                (Ident, _, _, Name(0)) => self.expect = Block,
-                (Ident, _, _, Blank) => continue,
-                (Ident, _, _, _) => self.error(tok)?,
-
-                (Block, _, _, OpeningBlock) => self.expect = Dot,
-                (Block, _, _, Blank) => continue,
-                (Block, _, _, _) => self.error(tok)?,
-
-                (Dot, _, _, ClosingBlock) => {
-                    if self.field.is_none() && self.method.is_none() {
-                        write!(out, ");\n")?;
-                    }
-                    assert!(self.groups == 0);
-                    assert!(self.blocks == 0);
-                    self.reset();
-                }
-                (Dot, _, _, Prop) => self.expect = Member,
-                (Dot, _, _, Blank) => continue,
-                (Dot, _, _, _) => self.error(tok)?,
-
-                (Member, _, _, Name(0)) => {
-                    self.symbol = Some(tok);
-                    self.expect = FieldOrMethod;
-                }
-                (Member, _, _, Name(_)) => self.error(tok)?,
-                (Member, _, _, Blank) => continue,
-                (Member, _, _, _) => self.error(tok)?,
-
-                (FieldOrMethod, _, _, Delim('=')) => {
-                    if self.method.is_some() {
-                        return Err(SyntaxError(
-                            tok.turn_bad("field after methods")));
-                    }
-                    if self.field.is_some() {
-                        write!(out, ",")?;
-                    }
-                    write!(out, "\n")?;
-                    self.field = self.symbol;
-                    self.expect = Value;
-                }
-                (FieldOrMethod, _, _, OpeningGroup) => {
-                    assert!(self.groups == 1);
-                    if self.method.is_none() {
-                        write!(out, ");\n")?;
-                    }
-                    self.method = self.symbol;
-                    self.expect = Arguments;
-                }
-                (FieldOrMethod, _, _, Blank) => continue,
-                (FieldOrMethod, _, _, _) => self.error(tok)?,
-
-                (Value, _, 0, Delim(';')) => self.error(tok)?,
-                (Value, _, _, Blank) => continue,
-                (Value, _, _, _) => self.expect = EndOfField,
-
-                (EndOfField, _, 0, Delim(';')) => self.expect = Dot,
-                (EndOfField, _, _, _) => (),
-
-                (Arguments, _, 0, ClosingGroup) => self.expect = EndOfMethod,
-                // XXX: insufficient arguments parsing
-                (Arguments, _, _, _) => (),
-
-                (SemiColon, _, 0, Delim(';')) => self.expect = Dot,
-                (SemiColon, _, _, _) => self.error(tok)?,
-
-                (_, _, _, _) => unreachable!(),
             }
-            match self.expect {
-                Code => write!(out, "{}", &self.source[&tok])?,
-                Block => {
-                    assert!(self.object.is_some());
-                    self.ident = Some(tok);
-                    write!(out, "sub vcl_init {{\n\tnew {} = {}(",
-                        &self.source[&tok],
-                        &self.source[&self.object.unwrap()])?;
-                }
-                Value => {
-                    assert!(self.field.is_some());
-                    assert!(self.symbol.is_some());
-                    assert_eq!(&self.source[&tok], "=");
-                    write!(out, "\t\t{} = ",
-                        &self.source[&self.field.unwrap()])?;
-                    self.symbol = None;
-                }
-                EndOfField => write!(out, "{}", &self.source[&tok])?,
-                Arguments => {
-                    assert!(self.ident.is_some());
-                    assert!(self.method.is_some());
-                    match self.symbol {
-                        Some(_) => {
-                            self.symbol = None;
-                            write!(out, "\t{}.{}(",
-                                &self.source[&self.ident.unwrap()],
-                                &self.source[&self.method.unwrap()])?;
-                        }
-                        None => write!(out, "{}", &self.source[&tok])?,
-                    }
-                }
-                EndOfMethod => {
-                    self.expect = SemiColon;
-                    write!(out, ");\n")?;
-                }
-                _ => (),
-            };
         }
         if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
             assert!(self.token.is_some());
