@@ -51,9 +51,9 @@ impl Expected {
     }
 }
 
-struct Preprocessor<'pp> {
+struct Preprocessor<'pp, I: Iterator<Item=Token>> {
     source: &'pp String,
-    input: Tokenizer<'pp>,
+    input: I,
     output: Vec<Token>,
     broken: bool,
     expect: Expected,
@@ -67,11 +67,12 @@ struct Preprocessor<'pp> {
     token: Option<Token>,
 }
 
-impl<'pp> Preprocessor<'pp> {
-    fn new(source: &'pp String) -> Preprocessor<'pp> {
+impl<'pp, I> Preprocessor<'pp, I>
+where I: Iterator<Item=Token> {
+    fn new(source: &'pp String, input: I) -> Preprocessor<'pp, I> {
         Preprocessor {
             source: source,
-            input: Tokenizer::new(source.chars()),
+            input: input,
             output: vec!(),
             broken: false,
             expect: Code,
@@ -301,7 +302,8 @@ impl<'pp> Preprocessor<'pp> {
     }
 }
 
-impl<'a> Iterator for Preprocessor<'a> {
+impl<'a, I> Iterator for Preprocessor<'a, I>
+where I: Iterator<Item=Token> {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -347,7 +349,9 @@ fn main() {
         Err(e) => cli::fail(e),
     };
 
-    for tok in Preprocessor::new(&src) {
+    let tokens = Tokenizer::new(src.chars());
+
+    for tok in Preprocessor::new(&src, tokens) {
         match tok.lexeme {
             Bad(msg) => {
                 cli::fail(format!("{}, Line {}, Pos {}",
