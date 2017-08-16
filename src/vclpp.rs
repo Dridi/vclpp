@@ -109,7 +109,7 @@ impl<'pp> Preprocessor<'pp> {
         // NB: don't reset self.token
     }
 
-    fn balance(&mut self, tok: Token) -> Option<&'static str> {
+    fn balance(&mut self, tok: &Token) -> Option<&'static str> {
         assert!(self.groups >= 0);
         assert!(self.blocks >= 0);
         if tok.lexeme == OpeningBlock && self.groups > 0 {
@@ -302,7 +302,7 @@ impl<'pp> Preprocessor<'pp> {
     fn exec<'a, W: Write>(&mut self, mut out: W)
     -> PvclResult {
         for t in Tokenizer::new(self.source.chars()) {
-            let tok = match self.balance(t) {
+            let tok = match self.balance(&t) {
                 Some(msg) => t.turn_bad(msg),
                 None => t,
             };
