@@ -97,7 +97,7 @@ impl Lexeme {
 #[derive(Clone)]
 enum Synthetic {
     Raw(&'static str),
-    Dyn, // XXX: temporary broken
+    Dyn(String),
 }
 
 #[derive(Clone)]
@@ -133,7 +133,7 @@ impl Token {
             lexeme: lex,
             start: Position::new(),
             end: Position::new(),
-            synth: Some(Dyn),
+            synth: Some(Dyn(msg)),
         }
     }
 
@@ -141,11 +141,11 @@ impl Token {
         Self::dyn(self.lexeme, self.as_str(src).to_string())
     }
 
-    pub fn as_str<'a>(&self, src: &'a String) -> &'a str {
+    pub fn as_str<'a>(&'a self, src: &'a String) -> &'a str {
         assert!(self.lexeme.is_valid());
         match self.synth {
             Some(Raw(msg)) => msg,
-            Some(Dyn) => unimplemented!(),
+            Some(Dyn(ref msg)) => &msg.as_str(),
             None => &src.as_str()[self.start.offset..self.end.offset],
         }
     }
