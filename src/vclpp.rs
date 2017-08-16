@@ -53,6 +53,7 @@ impl Expected {
 
 struct Preprocessor<'pp> {
     source: &'pp String,
+    input: Tokenizer<'pp>,
     output: Vec<Token>,
     broken: bool,
     expect: Expected,
@@ -70,6 +71,7 @@ impl<'pp> Preprocessor<'pp> {
     fn new(source: &'pp String) -> Preprocessor<'pp> {
         Preprocessor {
             source: source,
+            input: Tokenizer::new(source.chars()),
             output: vec!(),
             broken: false,
             expect: Code,
@@ -297,22 +299,43 @@ impl<'pp> Preprocessor<'pp> {
             _ => (),
         };
     }
+}
 
-    fn exec<'a>(&mut self) -> Vec<Token> {
-        for tok in Tokenizer::new(self.source.chars()) {
-            self.balance(&tok);
-            self.token = Some(tok.clone());
-            if self.broken {
+impl<'a> Iterator for Preprocessor<'a> {
+    type Item = Token;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.broken {
+            return None;
+        }
+        if self.output.len() > 0 {
+            return Some(self.output.remove(0));
+        }
+        loop {
+            match self.input.next() {
+                Some(tok) => {
+                    self.balance(&tok);
+                    self.token = Some(tok.clone());
+                    if !self.broken {
+                        self.process(tok);
+                    }
+                }
+                None => {
+                    if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
+                        assert!(self.token.is_some());
+                        let token = self.token.clone().unwrap();
+                        self.broken = true;
+                        return Some(token.turn_bad("incomplete VCL"));
+                    }
+                    return None;
+                }
+            }
+            if !self.expect.pvcl() || self.output.len() != 0 {
                 break;
             }
-            self.process(tok);
         }
-        if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
-            assert!(self.token.is_some());
-            let token = self.token.clone().unwrap();
-            self.push(token.turn_bad("incomplete VCL"));
-        }
-        self.output.clone() // XXX: temporary clone
+        assert!(self.output.len() > 0);
+        Some(self.output.remove(0))
     }
 }
 
@@ -324,7 +347,7 @@ fn main() {
         Err(e) => cli::fail(e),
     };
 
-    for tok in Preprocessor::new(&src).exec().into_iter() {
+    for tok in Preprocessor::new(&src) {
         match tok.lexeme {
             Bad(msg) => {
                 cli::fail(format!("{}, Line {}, Pos {}",
