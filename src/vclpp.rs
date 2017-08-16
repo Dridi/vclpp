@@ -19,7 +19,6 @@
 mod cli;
 mod tok;
 
-use std::io::Error;
 use std::io::Write;
 
 use tok::Lexeme::*;
@@ -27,22 +26,6 @@ use tok::Token;
 use tok::Tokenizer;
 
 use Expected::*;
-use PvclError::*;
-
-/* ------------------------------------------------------------------- */
-
-type PvclResult = Result<(), PvclError>;
-
-enum PvclError {
-    SyntaxError(Token),
-    IoError(Error),
-}
-
-impl From<Error> for PvclError {
-    fn from(e: Error) -> PvclError { IoError(e) }
-}
-
-/* ------------------------------------------------------------------- */
 
 #[derive(Clone, Copy, Debug)]
 enum Expected {
@@ -303,50 +286,43 @@ impl<'pp> Preprocessor<'pp> {
         synth
     }
 
-    fn exec<'a, W: Write>(&mut self, mut out: W)
-    -> PvclResult {
+    fn exec<'a>(&mut self) -> Vec<Token> {
+        let mut tokens: Vec<Token> = vec!();
         for t in Tokenizer::new(self.source.chars()) {
             let tok = match self.balance(&t) {
                 Some(msg) => t.turn_bad(msg),
                 None => t,
             };
             self.token = Some(tok.clone());
-            for t2 in self.process(tok) {
-                match t2.lexeme {
-                    Bad(_) => Err(SyntaxError(t2))?,
-                    _ => write!(out, "{}", t2.as_str(&self.source))?,
-                }
-            }
+            tokens.append(&mut self.process(tok));
         }
         if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
             assert!(self.token.is_some());
             let token = self.token.clone().unwrap();
-            Err(SyntaxError(token.turn_bad("incomplete VCL")))?;
+            tokens.push(token.turn_bad("incomplete VCL"));
         }
-        out.flush()?;
-        Ok(())
+        tokens
     }
 }
 
 /* ------------------------------------------------------------------- */
 
 fn main() {
-    let (src, out) = match cli::parse_args() {
+    let (src, mut out) = match cli::parse_args() {
         Ok((s, o)) => (s, o),
         Err(e) => cli::fail(e),
     };
 
-    match Preprocessor::new(&src).exec(out) {
-        Err(SyntaxError(tok)) => {
-            match tok.lexeme {
-                Bad(msg) => {
-                    cli::fail(format!("{}, Line {}, Pos {}",
-                        msg, tok.start.line, tok.start.column));
-                }
-                _ => unreachable!(),
+    for tok in Preprocessor::new(&src).exec().into_iter() {
+        match tok.lexeme {
+            Bad(msg) => {
+                cli::fail(format!("{}, Line {}, Pos {}",
+                    msg, tok.start.line, tok.start.column));
+            }
+            _ => match write!(out, "{}", tok.as_str(&src)) {
+                Err(e) => cli::fail(e),
+                Ok(_) => (),
             }
         }
-        Err(IoError(e)) => cli::fail(e),
-        Ok(_) => ()
     }
 }
