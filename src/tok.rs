@@ -111,11 +111,12 @@ pub struct Token {
 impl Token {
     pub fn turn_bad(&self, msg: &'static str) -> Self {
         assert!(self.lexeme.is_valid());
+        assert!(self.synth.is_none());
         Token {
             lexeme: Bad(msg),
             start: self.start,
             end: self.end,
-            synth: None, // XXX: really drop synthetic tokens?
+            synth: None,
         }
     }
 
