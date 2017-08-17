@@ -24,7 +24,7 @@ use self::Lexeme::*;
 
 /* ------------------------------------------------------------------- */
 
-#[derive(Clone, Copy)]
+#[derive(Clone)]
 pub struct Position {
     pub line: usize,
     pub column: usize,
@@ -101,8 +101,8 @@ impl Token {
         assert!(!self.synthetic());
         Token {
             lexeme: Bad,
-            start: self.start,
-            end: self.end,
+            start: self.start.clone(),
+            end: self.end.clone(),
             text: msg.to_string(),
         }
     }
@@ -191,8 +191,8 @@ impl<'a> Tokenizer<'a> {
         self.text = Some(String::new());
         Token {
             lexeme: self.lexeme.unwrap(),
-            start: self.start,
-            end: self.end,
+            start: self.start.clone(),
+            end: self.end.clone(),
             text: text,
         }
     }
@@ -352,12 +352,12 @@ impl<'a> Iterator for Tokenizer<'a> {
             CurrentReady => {
                 self.handling = NeedsMore;
                 self.lexeme = None;
-                self.start = self.end;
+                self.start = self.end.clone();
             },
             PreviousReady => {
                 self.handling = HasChar;
                 self.lexeme = None;
-                self.start = self.end;
+                self.start = self.end.clone();
             },
             Done => return None,
             _ => ()
