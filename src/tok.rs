@@ -21,7 +21,6 @@ use std::str::Chars;
 
 use self::Handling::*;
 use self::Lexeme::*;
-use self::Synthetic::*;
 
 /* ------------------------------------------------------------------- */
 
@@ -95,28 +94,22 @@ impl Lexeme {
 }
 
 #[derive(Clone)]
-enum Synthetic {
-    Raw(&'static str),
-    Dyn(String),
-}
-
-#[derive(Clone)]
 pub struct Token {
     pub lexeme: Lexeme,
     pub start: Position,
     pub end: Position,
-    synth: Option<Synthetic>,
+    text: String,
 }
 
 impl Token {
     pub fn turn_bad(&self, msg: &'static str) -> Self {
         assert!(self.lexeme.is_valid());
-        assert!(self.synth.is_none());
+        assert!(!self.synthetic());
         Token {
             lexeme: Bad(msg),
             start: self.start,
             end: self.end,
-            synth: None,
+            text: String::new(),
         }
     }
 
@@ -125,7 +118,7 @@ impl Token {
             lexeme: lex,
             start: Position::new(),
             end: Position::new(),
-            synth: Some(Raw(msg)),
+            text: msg.to_string(),
         }
     }
 
@@ -134,7 +127,7 @@ impl Token {
             lexeme: lex,
             start: Position::new(),
             end: Position::new(),
-            synth: Some(Dyn(msg)),
+            text: msg,
         }
     }
 
@@ -144,11 +137,11 @@ impl Token {
 
     pub fn as_str<'a>(&'a self, src: &'a String) -> &'a str {
         assert!(self.lexeme.is_valid());
-        match self.synth {
-            Some(Raw(msg)) => msg,
-            Some(Dyn(ref msg)) => &msg.as_str(),
-            None => &src.as_str()[self.start.offset..self.end.offset],
-        }
+        self.text.as_str()
+    }
+
+    fn synthetic(&self) -> bool {
+        self.start.line == 0
     }
 }
 
@@ -167,6 +160,7 @@ enum Handling {
 pub struct Tokenizer<'a> {
     chars: Chars<'a>,
     lexeme: Option<Lexeme>,
+    text: Option<String>,
     start: Position,
     end: Position,
     previous: char,
@@ -178,6 +172,7 @@ impl<'a> Tokenizer<'a> {
         Tokenizer {
             chars: chars,
             lexeme: None,
+            text: Some(String::new()),
             start: Position::new(),
             end: Position::new(),
             previous: '?', // doesn't matter when lexeme is None
@@ -185,13 +180,16 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
-    fn to_token(&self) -> Token {
+    fn to_token(&mut self) -> Token {
         assert!(self.lexeme.is_some());
+        assert!(self.text.is_some());
+        let text = self.text.take().unwrap();
+        self.text = Some(String::new());
         Token {
             lexeme: self.lexeme.unwrap(),
             start: self.start,
             end: self.end,
-            synth: None,
+            text: text,
         }
     }
 
@@ -293,6 +291,14 @@ impl<'a> Tokenizer<'a> {
         }
     }
 
+    fn consume(&mut self, c: char) {
+        match self.text {
+            Some(ref mut text) => text.push(c),
+            None => unreachable!(),
+        }
+        self.end.consume(c);
+    }
+
     fn next_char(&mut self) {
         let c = match self.handling {
             NeedsMore => match self.chars.next() {
@@ -321,7 +327,7 @@ impl<'a> Tokenizer<'a> {
         match handling {
             PreviousReady => (),
             HasChar => unreachable!(),
-            _ => self.end.consume(c),
+            _ => self.consume(c),
         }
 
         if self.lexeme.is_none() {
