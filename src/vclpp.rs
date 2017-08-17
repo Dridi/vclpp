@@ -16,12 +16,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+mod bktchk;
 mod cli;
 mod declobj;
 mod tok;
 
 use std::io::Write;
 
+use bktchk::BracketCheck;
 use declobj::DeclarativeObject;
 use tok::Lexeme::*;
 use tok::Tokenizer;
@@ -33,9 +35,11 @@ fn main() {
     };
 
     let input = Tokenizer::new(src.chars());
-    let pass1 = DeclarativeObject::new(input);
+    let pass0 = BracketCheck::new(input);
+    let pass1 = DeclarativeObject::new(pass0);
+    let pass2 = BracketCheck::new(pass1);
 
-    for tok in pass1 {
+    for tok in pass2 {
         match tok.lexeme {
             Bad(msg) => {
                 cli::fail(format!("{}, Line {}, Pos {}",

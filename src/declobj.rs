@@ -98,27 +98,6 @@ where I: Iterator<Item=Token> {
         self.output.push(tok);
     }
 
-    fn balance(&mut self, tok: &Token) {
-        assert!(self.groups >= 0);
-        assert!(self.blocks >= 0);
-        if tok.lexeme == OpeningBlock && self.groups > 0 {
-            self.push(tok.turn_bad("opening a block inside an expression"));
-            return;
-        }
-
-        match tok.lexeme {
-            OpeningGroup => self.groups += 1,
-            ClosingGroup => self.groups -= 1,
-            OpeningBlock => self.blocks += 1,
-            ClosingBlock => self.blocks -= 1,
-            _ => (),
-        }
-
-        if self.groups < 0 || self.blocks < 0 {
-            self.push(tok.turn_bad("unbalanced brackets"));
-        }
-    }
-
     fn error(&mut self, tok: Token) {
         let msg = match self.expect {
             Code |
@@ -308,7 +287,13 @@ where I: Iterator<Item=Token> {
         loop {
             match self.input.next() {
                 Some(tok) => {
-                    self.balance(&tok);
+                    match tok.lexeme {
+                        OpeningGroup => self.groups += 1,
+                        ClosingGroup => self.groups -= 1,
+                        OpeningBlock => self.blocks += 1,
+                        ClosingBlock => self.blocks -= 1,
+                        _ => (),
+                    }
                     self.token = Some(tok.clone());
                     if !self.broken {
                         self.process(tok);
