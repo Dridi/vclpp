@@ -92,9 +92,7 @@ where I: Iterator<Item=Token> {
     }
 
     fn push(&mut self, tok: Token) {
-        if !tok.lexeme.is_valid() {
-            self.broken = true;
-        }
+        self.broken |= tok.lexeme == Bad;
         self.output.push(tok);
     }
 
@@ -117,7 +115,7 @@ where I: Iterator<Item=Token> {
 
     fn process(&mut self, tok: Token) {
         match (self.expect, self.blocks, self.groups, tok.lexeme) {
-            (_, _, _, Bad(_)) => {
+            (_, _, _, Bad) => {
                 self.push(tok);
                 return;
             }

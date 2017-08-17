@@ -41,9 +41,9 @@ fn main() {
 
     for tok in pass2 {
         match tok.lexeme {
-            Bad(msg) => {
+            Bad => {
                 cli::fail(format!("{}, Line {}, Pos {}",
-                    msg, tok.start.line, tok.start.column));
+                    tok.as_str(), tok.start.line, tok.start.column));
             }
             _ => match write!(out, "{}", tok.as_str()) {
                 Err(e) => cli::fail(e),

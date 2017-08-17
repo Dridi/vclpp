@@ -84,13 +84,7 @@ pub enum Lexeme {
     ClosingGroup,
     OpeningBlock,
     ClosingBlock,
-    Bad(&'static str),
-}
-
-impl Lexeme {
-    pub fn is_valid(&self) -> bool {
-        match self { &Bad(_) => false, _ => true }
-    }
+    Bad
 }
 
 #[derive(Clone)]
@@ -103,13 +97,13 @@ pub struct Token {
 
 impl Token {
     pub fn turn_bad(&self, msg: &'static str) -> Self {
-        assert!(self.lexeme.is_valid());
+        assert!(self.lexeme != Bad);
         assert!(!self.synthetic());
         Token {
-            lexeme: Bad(msg),
+            lexeme: Bad,
             start: self.start,
             end: self.end,
-            text: String::new(),
+            text: msg.to_string(),
         }
     }
 
@@ -136,7 +130,6 @@ impl Token {
     }
 
     pub fn as_str<'a>(&'a self) -> &'a str {
-        assert!(self.lexeme.is_valid());
         self.text.as_str()
     }
 
@@ -178,6 +171,17 @@ impl<'a> Tokenizer<'a> {
             previous: '?', // doesn't matter when lexeme is None
             handling: NeedsMore,
         }
+    }
+
+    pub fn error(&mut self, msg: &'static str) -> Lexeme {
+        match self.text {
+            Some(ref mut text) => {
+                text.clear();
+                text.push_str(msg);
+            }
+            None => unreachable!()
+        }
+        Bad
     }
 
     fn to_token(&mut self) -> Token {
@@ -224,7 +228,7 @@ impl<'a> Tokenizer<'a> {
                 ')' => (ClosingGroup, CurrentReady),
                 '{' => (OpeningBlock, MayNeedMore),
                 '}' => (ClosingBlock, CurrentReady),
-                _ => (Bad("unexpected character"), Done),
+                _ => (self.error("unexpected character"), Done),
             };
         }
         match (self.lexeme.unwrap(), self.previous, c) {
@@ -241,25 +245,25 @@ impl<'a> Tokenizer<'a> {
             (Delim(_), '/', '/') => (CxxComment, NeedsMore),
             (Delim(_), '/', _) => (Delim('/'), PreviousReady),
 
-            (Name(_), '.', '.') => (Bad("invalid name"), Done),
+            (Name(_), '.', '.') => (self.error("invalid name"), Done),
             (Name(d), _, 'a'...'z') |
             (Name(d), _, 'A'...'Z') |
             (Name(d), _, '0'...'9') |
             (Name(d), _, '_') |
             (Name(d), _, '-') => (Name(d), MayNeedMore),
             (Name(d), _, '.') => (Name(d+1), NeedsMore),
-            (Name(_), '.', _) => (Bad("invalid name"), Done),
+            (Name(_), '.', _) => (self.error("invalid name"), Done),
             (Name(d), _, _) => (Name(d), PreviousReady),
 
             (Integer, _, '.') => (Number, MayNeedMore),
             (Integer, _, '0'...'9') => (Integer, MayNeedMore),
             (Integer, _, _) => (Integer, PreviousReady),
 
-            (Number, _, '.') => (Bad("invalid number"), Done),
+            (Number, _, '.') => (self.error("invalid number"), Done),
             (Number, _, '0'...'9') => (Number, MayNeedMore),
             (Number, _, _) => (Number, PreviousReady),
 
-            (SimpleString, _, '\n') => (Bad("invalid string"), Done),
+            (SimpleString, _, '\n') => (self.error("invalid string"), Done),
             (SimpleString, _, '"') => (SimpleString, CurrentReady),
             (SimpleString, _, _) => (SimpleString, NeedsMore),
 
@@ -304,7 +308,7 @@ impl<'a> Tokenizer<'a> {
             NeedsMore => match self.chars.next() {
                 Some(c) => c,
                 None => {
-                    self.lexeme = Some(Bad("incomplete VCL"));
+                    self.lexeme = Some(self.error("incomplete VCL"));
                     self.handling = Done;
                     return;
                 }
