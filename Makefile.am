@@ -26,6 +26,7 @@ noinst_SCRIPTS = src/vcltok
 vclpp_SRC = \
 	src/vclpp.rs \
 	src/cli.rs \
+	src/declobj.rs \
 	src/tok.rs
 
 vcltok_SRC = \
