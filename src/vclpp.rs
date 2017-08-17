@@ -51,7 +51,7 @@ impl Expected {
     }
 }
 
-struct Preprocessor<I: Iterator<Item=Token>> {
+struct DeclarativeObject<I: Iterator<Item=Token>> {
     input: I,
     output: Vec<Token>,
     broken: bool,
@@ -66,10 +66,10 @@ struct Preprocessor<I: Iterator<Item=Token>> {
     token: Option<Token>,
 }
 
-impl<I> Preprocessor<I>
+impl<I> DeclarativeObject<I>
 where I: Iterator<Item=Token> {
-    fn new(input: I) -> Preprocessor<I> {
-        Preprocessor {
+    fn new(input: I) -> DeclarativeObject<I> {
+        DeclarativeObject {
             input: input,
             output: vec!(),
             broken: false,
@@ -300,7 +300,7 @@ where I: Iterator<Item=Token> {
     }
 }
 
-impl<I> Iterator for Preprocessor<I>
+impl<I> Iterator for DeclarativeObject<I>
 where I: Iterator<Item=Token> {
     type Item = Token;
 
@@ -349,7 +349,7 @@ fn main() {
 
     let tokens = Tokenizer::new(src.chars());
 
-    for tok in Preprocessor::new(tokens) {
+    for tok in DeclarativeObject::new(tokens) {
         match tok.lexeme {
             Bad(msg) => {
                 cli::fail(format!("{}, Line {}, Pos {}",
