@@ -17,16 +17,16 @@
  */
 
 use tok::Lexeme::*;
-use tok::Token;
+use tok::RcToken;
 
-pub struct BracketCheck<I: Iterator<Item=Token>> {
+pub struct BracketCheck<I: Iterator<Item=RcToken>> {
     input: I,
     groups: isize,
     blocks: isize,
 }
 
 impl<I> BracketCheck<I>
-where I: Iterator<Item=Token> {
+where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> BracketCheck<I> {
         BracketCheck {
             input: input,
@@ -37,36 +37,40 @@ where I: Iterator<Item=Token> {
 }
 
 impl<I> Iterator for BracketCheck<I>
-where I: Iterator<Item=Token> {
-    type Item = Token;
+where I: Iterator<Item=RcToken> {
+    type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.groups < 0 || self.blocks < 0 {
             return None;
         }
 
-        let tok = match self.input.next() {
+        let rctok = match self.input.next() {
             Some(tok) => tok,
             None => return None,
         };
 
-        if tok.lexeme == OpeningBlock && self.groups > 0 {
-            self.groups = -1;
-            return Some(tok.turn_bad("opening a block inside an expression"));
+        {
+            let tok = rctok.borrow();
+
+            if tok.lexeme == OpeningBlock && self.groups > 0 {
+                self.groups = -1;
+                return Some(tok.turn_bad("opening a block inside an expression"));
+            }
+
+            match tok.lexeme {
+                OpeningGroup => self.groups += 1,
+                ClosingGroup => self.groups -= 1,
+                OpeningBlock => self.blocks += 1,
+                ClosingBlock => self.blocks -= 1,
+                _ => (),
+            }
+
+            if self.groups < 0 || self.blocks < 0 {
+                return Some(tok.turn_bad("unbalanced brackets"));
+            }
         }
 
-        match tok.lexeme {
-            OpeningGroup => self.groups += 1,
-            ClosingGroup => self.groups -= 1,
-            OpeningBlock => self.blocks += 1,
-            ClosingBlock => self.blocks -= 1,
-            _ => (),
-        }
-
-        if self.groups < 0 || self.blocks < 0 {
-            return Some(tok.turn_bad("unbalanced brackets"));
-        }
-
-        Some(tok)
+        Some(rctok)
     }
 }

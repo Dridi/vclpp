@@ -39,7 +39,8 @@ fn main() {
     let pass1 = DeclarativeObject::new(pass0);
     let pass2 = BracketCheck::new(pass1);
 
-    for tok in pass2 {
+    for rctok in pass2 {
+        let tok = rctok.borrow();
         match tok.lexeme {
             Bad => {
                 cli::fail(format!("{}, Line {}, Pos {}",

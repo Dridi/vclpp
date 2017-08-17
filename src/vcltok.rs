@@ -37,7 +37,8 @@ fn write_escaped<W: Write>(out: &mut W, s: &str) -> Result<usize> {
 fn decompose() -> Result<()> {
     let (src, mut out) = cli::parse_args()?;
 
-    for tok in Tokenizer::new(src.chars()) {
+    for rctok in Tokenizer::new(src.chars()) {
+        let tok = rctok.borrow();
         write!(out, "[{}...{}] ", tok.start, tok.end)?;
         match tok.lexeme {
             Bad => write!(out, "bad token: {}\n", tok.as_str())?,

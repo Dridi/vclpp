@@ -17,6 +17,7 @@
  */
 
 use tok::Lexeme::*;
+use tok::RcToken;
 use tok::Token;
 
 use self::Expected::*;
@@ -45,23 +46,23 @@ impl Expected {
     }
 }
 
-pub struct DeclarativeObject<I: Iterator<Item=Token>> {
+pub struct DeclarativeObject<I: Iterator<Item=RcToken>> {
     input: I,
-    output: Vec<Token>,
+    output: Vec<RcToken>,
     broken: bool,
     expect: Expected,
     groups: isize,
     blocks: isize,
-    ident: Option<Token>,
-    object: Option<Token>,
-    symbol: Option<Token>,
-    field: Option<Token>,
-    method: Option<Token>,
-    token: Option<Token>,
+    ident: Option<RcToken>,
+    object: Option<RcToken>,
+    symbol: Option<RcToken>,
+    field: Option<RcToken>,
+    method: Option<RcToken>,
+    token: Option<RcToken>,
 }
 
 impl<I> DeclarativeObject<I>
-where I: Iterator<Item=Token> {
+where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> DeclarativeObject<I> {
         DeclarativeObject {
             input: input,
@@ -91,12 +92,12 @@ where I: Iterator<Item=Token> {
         // NB: only reset parsing state
     }
 
-    fn push(&mut self, tok: Token) {
-        self.broken |= tok.lexeme == Bad;
-        self.output.push(tok);
+    fn push(&mut self, rctok: RcToken) {
+        self.broken |= rctok.borrow().lexeme == Bad;
+        self.output.push(rctok);
     }
 
-    fn error(&mut self, tok: Token) {
+    fn error(&mut self, rctok: &RcToken) {
         let msg = match self.expect {
             Code |
             Arguments |
@@ -110,23 +111,24 @@ where I: Iterator<Item=Token> {
             Value => "expected value",
             SemiColon => "expected ';'",
         };
-        self.push(tok.turn_bad(msg));
+        self.push(rctok.borrow().turn_bad(msg));
     }
 
-    fn process(&mut self, tok: Token) {
-        match (self.expect, self.blocks, self.groups, tok.lexeme) {
+    fn process(&mut self, rctok: RcToken) {
+        let lex = rctok.borrow().lexeme;
+        match (self.expect, self.blocks, self.groups, lex) {
             (_, _, _, Bad) => {
-                self.push(tok);
+                self.push(rctok);
                 return;
             }
 
             (Code, 0, _, Name(0)) => (),
             (Code, 0, _, Name(1)) => {
-                self.object = Some(tok.clone());
+                self.object = Some(RcToken::clone(&rctok));
                 self.expect = Ident;
             }
             (Code, 0, _, Name(_)) => {
-                self.push(tok.turn_bad("invalid identifier"));
+                self.push(rctok.borrow().turn_bad("invalid identifier"));
                 return;
             }
             (Code, _, _, _) => (),
@@ -138,11 +140,11 @@ where I: Iterator<Item=Token> {
 
             (Ident, _, _, Name(0)) => self.expect = Block,
             (Ident, _, _, Blank) => return,
-            (Ident, _, _, _) => return self.error(tok),
+            (Ident, _, _, _) => return self.error(&rctok),
 
             (Block, _, _, OpeningBlock) => self.expect = Dot,
             (Block, _, _, Blank) => return,
-            (Block, _, _, _) => return self.error(tok),
+            (Block, _, _, _) => return self.error(&rctok),
 
             (Dot, _, _, ClosingBlock) => {
                 if self.field.is_none() && self.method.is_none() {
@@ -156,26 +158,28 @@ where I: Iterator<Item=Token> {
             }
             (Dot, _, _, Prop) => self.expect = Member,
             (Dot, _, _, Blank) => return,
-            (Dot, _, _, _) => return self.error(tok),
+            (Dot, _, _, _) => return self.error(&rctok),
 
             (Member, _, _, Name(0)) => {
-                self.symbol = Some(tok.clone());
+                self.symbol = Some(RcToken::clone(&rctok));
                 self.expect = FieldOrMethod;
             }
-            (Member, _, _, Name(_)) => return self.error(tok),
+            (Member, _, _, Name(_)) => return self.error(&rctok),
             (Member, _, _, Blank) => return,
-            (Member, _, _, _) => return self.error(tok),
+            (Member, _, _, _) => return self.error(&rctok),
 
             (FieldOrMethod, _, _, Delim('=')) => {
                 if self.method.is_some() {
-                    self.push(tok.turn_bad("field after methods"));
+                    self.push(rctok.borrow().turn_bad("field after methods"));
                     return;
                 }
                 if self.field.is_some() {
                     self.push(Token::raw(Delim(','), ","));
                 }
                 self.push(Token::raw(Blank, "\n"));
-                self.field = self.symbol.clone();
+                let symbol = self.symbol.take().unwrap();
+                self.field = Some(RcToken::clone(&symbol));
+                self.symbol = Some(symbol);
                 self.expect = Value;
             }
             (FieldOrMethod, _, _, OpeningGroup) => {
@@ -185,13 +189,15 @@ where I: Iterator<Item=Token> {
                     self.push(Token::raw(Delim(';'), ";"));
                     self.push(Token::raw(Blank, "\n"));
                 }
-                self.method = self.symbol.clone();
+                let symbol = self.symbol.take().unwrap();
+                self.method = Some(RcToken::clone(&symbol));
+                self.symbol = Some(symbol);
                 self.expect = Arguments;
             }
             (FieldOrMethod, _, _, Blank) => return,
-            (FieldOrMethod, _, _, _) => return self.error(tok),
+            (FieldOrMethod, _, _, _) => return self.error(&rctok),
 
-            (Value, _, 0, Delim(';')) => return self.error(tok),
+            (Value, _, 0, Delim(';')) => return self.error(&rctok),
             (Value, _, _, Blank) => return,
             (Value, _, _, _) => self.expect = EndOfField,
 
@@ -203,16 +209,16 @@ where I: Iterator<Item=Token> {
             (Arguments, _, _, _) => (),
 
             (SemiColon, _, 0, Delim(';')) => self.expect = Dot,
-            (SemiColon, _, _, _) => return self.error(tok),
+            (SemiColon, _, _, _) => return self.error(&rctok),
 
             (_, _, _, _) => unreachable!(),
         }
         match self.expect {
-            Code => self.push(tok),
+            Code => self.push(rctok),
             Block => {
                 assert!(self.object.is_some());
-                self.ident = Some(tok.clone());
-                let object = self.object.clone().unwrap();
+                self.ident = Some(RcToken::clone(&rctok));
+                let object = self.object.take().unwrap();
                 self.push(Token::raw(Name(0), "sub"));
                 self.push(Token::raw(Blank, " "));
                 self.push(Token::raw(Name(0), "vcl_init"));
@@ -221,43 +227,47 @@ where I: Iterator<Item=Token> {
                 self.push(Token::raw(Blank, "\n\t"));
                 self.push(Token::raw(Name(0), "new"));
                 self.push(Token::raw(Blank, " "));
-                self.push(tok.to_synth());
+                self.push(rctok.borrow().to_synth());
                 self.push(Token::raw(Blank, " "));
                 self.push(Token::raw(Delim('='), "="));
                 self.push(Token::raw(Blank, " "));
-                self.push(object.to_synth());
+                self.push(object.borrow().to_synth());
                 self.push(Token::raw(OpeningGroup, "("));
+                self.object = Some(object);
             }
             Value => {
                 assert!(self.field.is_some());
                 assert!(self.symbol.is_some());
-                assert_eq!(tok.as_str(), "=");
-                let field = self.field.clone().unwrap();
+                assert_eq!(rctok.borrow().as_str(), "=");
+                let field = self.field.take().unwrap();
                 self.push(Token::raw(Blank, "\t\t"));
-                self.push(field.to_synth());
+                self.push(field.borrow().to_synth());
                 self.push(Token::raw(Blank, " "));
                 self.push(Token::raw(Delim('='), "="));
                 self.push(Token::raw(Blank, " "));
+                self.field = Some(field);
                 self.symbol = None;
             }
-            EndOfField => self.push(tok),
+            EndOfField => self.push(rctok),
             Arguments => {
                 assert!(self.ident.is_some());
                 assert!(self.method.is_some());
                 match self.symbol {
                     Some(_) => {
                         self.symbol = None;
-                        let ident = self.ident.clone().unwrap();
-                        let method = self.method.clone().unwrap();
+                        let ident = self.ident.take().unwrap();
+                        let method = self.method.take().unwrap();
                         let mut sym = String::new();
-                        sym += ident.as_str();
+                        sym += ident.borrow().as_str();
                         sym.push('.');
-                        sym += method.as_str();
+                        sym += method.borrow().as_str();
                         self.push(Token::raw(Blank, "\t"));
                         self.push(Token::dyn(Name(1), sym));
                         self.push(Token::raw(OpeningGroup, "("));
+                        self.ident = Some(ident);
+                        self.method = Some(method);
                     }
-                    None => self.push(tok),
+                    None => self.push(rctok),
                 }
             }
             EndOfMethod => {
@@ -272,8 +282,8 @@ where I: Iterator<Item=Token> {
 }
 
 impl<I> Iterator for DeclarativeObject<I>
-where I: Iterator<Item=Token> {
-    type Item = Token;
+where I: Iterator<Item=RcToken> {
+    type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.broken {
@@ -284,25 +294,27 @@ where I: Iterator<Item=Token> {
         }
         loop {
             match self.input.next() {
-                Some(tok) => {
-                    match tok.lexeme {
+                Some(rctok) => {
+                    match rctok.borrow().lexeme {
                         OpeningGroup => self.groups += 1,
                         ClosingGroup => self.groups -= 1,
                         OpeningBlock => self.blocks += 1,
                         ClosingBlock => self.blocks -= 1,
                         _ => (),
                     }
-                    self.token = Some(tok.clone());
+                    self.token = Some(RcToken::clone(&rctok));
                     if !self.broken {
-                        self.process(tok);
+                        self.process(rctok);
                     }
                 }
                 None => {
                     if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
-                        assert!(self.token.is_some());
-                        let token = self.token.clone().unwrap();
                         self.broken = true;
-                        return Some(token.turn_bad("incomplete VCL"));
+                        match self.token {
+                            Some(ref rctok) => return Some(rctok.borrow()
+                                .turn_bad("incomplete VCL")),
+                            None => unreachable!(),
+                        }
                     }
                     return None;
                 }

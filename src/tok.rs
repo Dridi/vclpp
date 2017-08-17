@@ -16,7 +16,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use std::cell::RefCell;
 use std::fmt;
+use std::rc::Rc;
 use std::str::Chars;
 
 use self::Handling::*;
@@ -87,7 +89,6 @@ pub enum Lexeme {
     Bad
 }
 
-#[derive(Clone)]
 pub struct Token {
     pub lexeme: Lexeme,
     pub start: Position,
@@ -95,37 +96,39 @@ pub struct Token {
     text: String,
 }
 
+pub type RcToken = Rc<RefCell<Token>>;
+
 impl Token {
-    pub fn turn_bad(&self, msg: &'static str) -> Self {
+    pub fn turn_bad(&self, msg: &'static str) -> RcToken {
         assert!(self.lexeme != Bad);
         assert!(!self.synthetic());
-        Token {
+        Rc::new(RefCell::new(Token {
             lexeme: Bad,
             start: self.start.clone(),
             end: self.end.clone(),
             text: msg.to_string(),
-        }
+        }))
     }
 
-    pub fn raw(lex: Lexeme, msg: &'static str) -> Self {
-        Token {
+    pub fn raw(lex: Lexeme, msg: &'static str) -> RcToken {
+        Rc::new(RefCell::new(Token {
             lexeme: lex,
             start: Position::new(),
             end: Position::new(),
             text: msg.to_string(),
-        }
+        }))
     }
 
-    pub fn dyn(lex: Lexeme, msg: String) -> Self {
-        Token {
+    pub fn dyn(lex: Lexeme, msg: String) -> RcToken {
+        Rc::new(RefCell::new(Token {
             lexeme: lex,
             start: Position::new(),
             end: Position::new(),
             text: msg,
-        }
+        }))
     }
 
-    pub fn to_synth(&self) -> Self {
+    pub fn to_synth(&self) -> RcToken {
         Self::dyn(self.lexeme, self.text.clone())
     }
 
@@ -184,17 +187,17 @@ impl<'a> Tokenizer<'a> {
         Bad
     }
 
-    fn to_token(&mut self) -> Token {
+    fn to_token(&mut self) -> RcToken {
         assert!(self.lexeme.is_some());
         assert!(self.text.is_some());
         let text = self.text.take().unwrap();
         self.text = Some(String::new());
-        Token {
+        Rc::new(RefCell::new(Token {
             lexeme: self.lexeme.unwrap(),
             start: self.start.clone(),
             end: self.end.clone(),
             text: text,
-        }
+        }))
     }
 
     fn next_state(&mut self, c: char) -> (Lexeme, Handling) {
@@ -345,7 +348,7 @@ impl<'a> Tokenizer<'a> {
 }
 
 impl<'a> Iterator for Tokenizer<'a> {
-    type Item = Token;
+    type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.handling {
