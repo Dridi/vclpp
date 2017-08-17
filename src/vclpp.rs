@@ -32,9 +32,10 @@ fn main() {
         Err(e) => cli::fail(e),
     };
 
-    let tokens = Tokenizer::new(src.chars());
+    let input = Tokenizer::new(src.chars());
+    let pass1 = DeclarativeObject::new(input);
 
-    for tok in DeclarativeObject::new(tokens) {
+    for tok in pass1 {
         match tok.lexeme {
             Bad(msg) => {
                 cli::fail(format!("{}, Line {}, Pos {}",
