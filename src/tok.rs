@@ -131,11 +131,11 @@ impl Token {
         }
     }
 
-    pub fn to_synth(&self, src: &String) -> Self {
-        Self::dyn(self.lexeme, self.as_str(src).to_string())
+    pub fn to_synth(&self) -> Self {
+        Self::dyn(self.lexeme, self.text.clone())
     }
 
-    pub fn as_str<'a>(&'a self, src: &'a String) -> &'a str {
+    pub fn as_str<'a>(&'a self) -> &'a str {
         assert!(self.lexeme.is_valid());
         self.text.as_str()
     }

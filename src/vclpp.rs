@@ -51,8 +51,7 @@ impl Expected {
     }
 }
 
-struct Preprocessor<'pp, I: Iterator<Item=Token>> {
-    source: &'pp String,
+struct Preprocessor<I: Iterator<Item=Token>> {
     input: I,
     output: Vec<Token>,
     broken: bool,
@@ -67,11 +66,10 @@ struct Preprocessor<'pp, I: Iterator<Item=Token>> {
     token: Option<Token>,
 }
 
-impl<'pp, I> Preprocessor<'pp, I>
+impl<I> Preprocessor<I>
 where I: Iterator<Item=Token> {
-    fn new(source: &'pp String, input: I) -> Preprocessor<'pp, I> {
+    fn new(input: I) -> Preprocessor<I> {
         Preprocessor {
-            source: source,
             input: input,
             output: vec!(),
             broken: false,
@@ -252,20 +250,20 @@ where I: Iterator<Item=Token> {
                 self.push(Token::raw(Blank, "\n\t"));
                 self.push(Token::raw(Name(0), "new"));
                 self.push(Token::raw(Blank, " "));
-                self.push(tok.to_synth(self.source));
+                self.push(tok.to_synth());
                 self.push(Token::raw(Blank, " "));
                 self.push(Token::raw(Delim('='), "="));
                 self.push(Token::raw(Blank, " "));
-                self.push(object.to_synth(self.source));
+                self.push(object.to_synth());
                 self.push(Token::raw(OpeningGroup, "("));
             }
             Value => {
                 assert!(self.field.is_some());
                 assert!(self.symbol.is_some());
-                assert_eq!(tok.as_str(&self.source), "=");
+                assert_eq!(tok.as_str(), "=");
                 let field = self.field.clone().unwrap();
                 self.push(Token::raw(Blank, "\t\t"));
-                self.push(field.to_synth(self.source));
+                self.push(field.to_synth());
                 self.push(Token::raw(Blank, " "));
                 self.push(Token::raw(Delim('='), "="));
                 self.push(Token::raw(Blank, " "));
@@ -281,9 +279,9 @@ where I: Iterator<Item=Token> {
                         let ident = self.ident.clone().unwrap();
                         let method = self.method.clone().unwrap();
                         let mut sym = String::new();
-                        sym += ident.as_str(&self.source);
+                        sym += ident.as_str();
                         sym.push('.');
-                        sym += method.as_str(&self.source);
+                        sym += method.as_str();
                         self.push(Token::raw(Blank, "\t"));
                         self.push(Token::dyn(Name(1), sym));
                         self.push(Token::raw(OpeningGroup, "("));
@@ -302,7 +300,7 @@ where I: Iterator<Item=Token> {
     }
 }
 
-impl<'a, I> Iterator for Preprocessor<'a, I>
+impl<I> Iterator for Preprocessor<I>
 where I: Iterator<Item=Token> {
     type Item = Token;
 
@@ -351,13 +349,13 @@ fn main() {
 
     let tokens = Tokenizer::new(src.chars());
 
-    for tok in Preprocessor::new(&src, tokens) {
+    for tok in Preprocessor::new(tokens) {
         match tok.lexeme {
             Bad(msg) => {
                 cli::fail(format!("{}, Line {}, Pos {}",
                     msg, tok.start.line, tok.start.column));
             }
-            _ => match write!(out, "{}", tok.as_str(&src)) {
+            _ => match write!(out, "{}", tok.as_str()) {
                 Err(e) => cli::fail(e),
                 Ok(_) => (),
             }

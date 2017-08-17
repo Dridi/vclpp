@@ -43,7 +43,7 @@ fn decompose() -> Result<()> {
             Bad(s) => write!(out, "bad token: {}\n", s)?,
             _ => {
                 write!(out, "token: {:?} '", tok.lexeme)?;
-                write_escaped(&mut out, tok.as_str(&src))?;
+                write_escaped(&mut out, tok.as_str())?;
                 write!(out, "'\n")?;
             }
         }
