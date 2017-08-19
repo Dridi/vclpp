@@ -27,16 +27,16 @@ use self::Lexeme::*;
 /* ------------------------------------------------------------------- */
 
 #[derive(Clone)]
-pub struct Position {
+pub struct Cursor {
     pub line: usize,
     pub column: usize,
     offset: usize,
     newline: bool,
 }
 
-impl Position {
-    fn new() -> Position {
-        Position {
+impl Cursor {
+    fn new() -> Cursor {
+        Cursor {
             line: 0,
             column: 0,
             offset: 0,
@@ -54,13 +54,13 @@ impl Position {
         self.offset += c.len_utf8();
     }
 
-    fn move_cursor_to(&mut self, p: &Position) {
+    fn move_to(&mut self, p: &Cursor) {
         self.line = p.line;
         self.column = p.column;
     }
 }
 
-impl fmt::Display for Position {
+impl fmt::Display for Cursor {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{},{}", self.line, self.column)
     }
@@ -91,8 +91,8 @@ pub enum Lexeme {
 
 pub struct Token {
     pub lexeme: Lexeme,
-    pub start: Position,
-    pub end: Position,
+    pub start: Cursor,
+    pub end: Cursor,
     text: String,
 }
 
@@ -113,8 +113,8 @@ impl Token {
     pub fn raw(lex: Lexeme, msg: &'static str) -> RcToken {
         Rc::new(RefCell::new(Token {
             lexeme: lex,
-            start: Position::new(),
-            end: Position::new(),
+            start: Cursor::new(),
+            end: Cursor::new(),
             text: msg.to_string(),
         }))
     }
@@ -122,8 +122,8 @@ impl Token {
     pub fn dyn(lex: Lexeme, msg: String) -> RcToken {
         Rc::new(RefCell::new(Token {
             lexeme: lex,
-            start: Position::new(),
-            end: Position::new(),
+            start: Cursor::new(),
+            end: Cursor::new(),
             text: msg,
         }))
     }
@@ -157,8 +157,8 @@ pub struct Tokenizer<'a> {
     chars: Chars<'a>,
     lexeme: Option<Lexeme>,
     text: Option<String>,
-    start: Position,
-    end: Position,
+    start: Cursor,
+    end: Cursor,
     previous: char,
     handling: Handling,
 }
@@ -169,8 +169,8 @@ impl<'a> Tokenizer<'a> {
             chars: chars,
             lexeme: None,
             text: Some(String::new()),
-            start: Position::new(),
-            end: Position::new(),
+            start: Cursor::new(),
+            end: Cursor::new(),
             previous: '?', // doesn't matter when lexeme is None
             handling: NeedsMore,
         }
@@ -338,7 +338,7 @@ impl<'a> Tokenizer<'a> {
         }
 
         if self.lexeme.is_none() {
-            self.start.move_cursor_to(&self.end);
+            self.start.move_to(&self.end);
         }
 
         self.handling = handling;
