@@ -17,12 +17,13 @@
  */
 
 use tok::Lexeme::*;
+use tok::Nest;
 use tok::RcToken;
 
 pub struct BracketCheck<I: Iterator<Item=RcToken>> {
     input: I,
-    groups: isize,
-    blocks: isize,
+    broken: bool,
+    nest: Nest,
     token: Option<RcToken>,
 }
 
@@ -31,8 +32,8 @@ where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> BracketCheck<I> {
         BracketCheck {
             input: input,
-            groups: 0,
-            blocks: 0,
+            broken: false,
+            nest: Nest::new(),
             token: None,
         }
     }
@@ -43,44 +44,36 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.groups < 0 || self.blocks < 0 {
+        if self.broken {
             return None;
         }
 
         let rctok = match self.input.next() {
             Some(rc) => rc,
-            None => return if self.groups != 0 || self.blocks != 0 {
-                    let last_tok = self.token.take();
-                    match last_tok {
-                        Some(rc) =>
-                            Some(rc.borrow().turn_bad("incomplete VCL")),
-                        None => None,
-                    }
+            None => return if self.nest.groups != 0 || self.nest.blocks != 0 {
+                    self.broken = true;
+                    let last_tok = self.token.take().unwrap();
+                    let bad_tok = last_tok.borrow().turn_bad("incomplete VCL");
+                    Some(bad_tok)
                 }
                 else {
                     None
                 }
         };
 
+        self.nest.update(&rctok);
         self.token = Some(RcToken::clone(&rctok));
 
         {
             let tok = rctok.borrow();
 
-            if tok.lexeme == OpeningBlock && self.groups > 0 {
-                self.groups = -1;
+            if tok.lexeme == OpeningBlock && self.nest.groups > 0 {
+                self.broken = true;
                 return Some(tok.turn_bad("opening a block inside an expression"));
             }
 
-            match tok.lexeme {
-                OpeningGroup => self.groups += 1,
-                ClosingGroup => self.groups -= 1,
-                OpeningBlock => self.blocks += 1,
-                ClosingBlock => self.blocks -= 1,
-                _ => (),
-            }
-
-            if self.groups < 0 || self.blocks < 0 {
+            if self.nest.groups < 0 || self.nest.blocks < 0 {
+                self.broken = true;
                 return Some(tok.turn_bad("unbalanced brackets"));
             }
         }

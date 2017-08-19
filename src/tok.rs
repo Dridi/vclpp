@@ -143,6 +143,32 @@ impl Token {
 
 /* ------------------------------------------------------------------- */
 
+pub struct Nest {
+    pub groups: isize,
+    pub blocks: isize,
+}
+
+impl Nest {
+    pub fn new() -> Self {
+        Nest {
+            groups: 0,
+            blocks: 0,
+        }
+    }
+
+    pub fn update(&mut self, rctok: &RcToken) {
+        match rctok.borrow().lexeme {
+            OpeningGroup => self.groups += 1,
+            ClosingGroup => self.groups -= 1,
+            OpeningBlock => self.blocks += 1,
+            ClosingBlock => self.blocks -= 1,
+            _ => (),
+        }
+    }
+}
+
+/* ------------------------------------------------------------------- */
+
 enum Handling {
     MayNeedMore,
     NeedsMore,

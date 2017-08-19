@@ -17,6 +17,7 @@
  */
 
 use tok::Lexeme::*;
+use tok::Nest;
 use tok::RcToken;
 use tok::Token;
 
@@ -51,8 +52,7 @@ pub struct DeclarativeObject<I: Iterator<Item=RcToken>> {
     output: Vec<RcToken>,
     broken: bool,
     expect: Expected,
-    groups: isize,
-    blocks: isize,
+    nest: Nest,
     ident: Option<RcToken>,
     object: Option<RcToken>,
     symbol: Option<RcToken>,
@@ -69,8 +69,7 @@ where I: Iterator<Item=RcToken> {
             output: vec!(),
             broken: false,
             expect: Code,
-            groups: 0,
-            blocks: 0,
+            nest: Nest::new(),
             ident: None,
             object: None,
             symbol: None,
@@ -81,9 +80,9 @@ where I: Iterator<Item=RcToken> {
     }
 
     fn reset(&mut self) {
+        assert!(self.nest.groups == 0);
+        assert!(self.nest.blocks == 0);
         self.expect = Code;
-        self.groups = 0;
-        self.blocks = 0;
         self.ident = None;
         self.object = None;
         self.symbol = None;
@@ -116,7 +115,7 @@ where I: Iterator<Item=RcToken> {
 
     fn process(&mut self, rctok: RcToken) {
         let lex = rctok.borrow().lexeme;
-        match (self.expect, self.blocks, self.groups, lex) {
+        match (self.expect, self.nest.blocks, self.nest.groups, lex) {
             (_, _, _, Bad) => {
                 self.push(rctok);
                 return;
@@ -152,8 +151,8 @@ where I: Iterator<Item=RcToken> {
                     self.push(Token::raw(Delim(';'), ";"));
                     self.push(Token::raw(Blank, "\n"));
                 }
-                assert!(self.groups == 0);
-                assert!(self.blocks == 0);
+                assert!(self.nest.groups == 0);
+                assert!(self.nest.blocks == 0);
                 self.reset();
             }
             (Dot, _, _, Prop) => self.expect = Member,
@@ -183,7 +182,7 @@ where I: Iterator<Item=RcToken> {
                 self.expect = Value;
             }
             (FieldOrMethod, _, _, OpeningGroup) => {
-                assert!(self.groups == 1);
+                assert!(self.nest.groups == 1);
                 if self.method.is_none() {
                     self.push(Token::raw(ClosingGroup, ")"));
                     self.push(Token::raw(Delim(';'), ";"));
@@ -295,13 +294,7 @@ where I: Iterator<Item=RcToken> {
         loop {
             match self.input.next() {
                 Some(rctok) => {
-                    match rctok.borrow().lexeme {
-                        OpeningGroup => self.groups += 1,
-                        ClosingGroup => self.groups -= 1,
-                        OpeningBlock => self.blocks += 1,
-                        ClosingBlock => self.blocks -= 1,
-                        _ => (),
-                    }
+                    self.nest.update(&rctok);
                     self.token = Some(RcToken::clone(&rctok));
                     if !self.broken {
                         self.process(rctok);
