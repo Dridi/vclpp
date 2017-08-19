@@ -23,6 +23,7 @@ pub struct BracketCheck<I: Iterator<Item=RcToken>> {
     input: I,
     groups: isize,
     blocks: isize,
+    token: Option<RcToken>,
 }
 
 impl<I> BracketCheck<I>
@@ -32,6 +33,7 @@ where I: Iterator<Item=RcToken> {
             input: input,
             groups: 0,
             blocks: 0,
+            token: None,
         }
     }
 }
@@ -46,9 +48,21 @@ where I: Iterator<Item=RcToken> {
         }
 
         let rctok = match self.input.next() {
-            Some(tok) => tok,
-            None => return None,
+            Some(rc) => rc,
+            None => return if self.groups != 0 || self.blocks != 0 {
+                    let last_tok = self.token.take();
+                    match last_tok {
+                        Some(rc) =>
+                            Some(rc.borrow().turn_bad("incomplete VCL")),
+                        None => None,
+                    }
+                }
+                else {
+                    None
+                }
         };
+
+        self.token = Some(RcToken::clone(&rctok));
 
         {
             let tok = rctok.borrow();

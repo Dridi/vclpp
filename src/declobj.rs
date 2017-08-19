@@ -308,7 +308,7 @@ where I: Iterator<Item=RcToken> {
                     }
                 }
                 None => {
-                    if self.expect.pvcl() || self.groups != 0 || self.blocks != 0 {
+                    if self.expect.pvcl() {
                         self.broken = true;
                         match self.token {
                             Some(ref rctok) => return Some(rctok.borrow()
