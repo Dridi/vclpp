@@ -19,12 +19,14 @@
 mod bktchk;
 mod cli;
 mod declobj;
+mod reqauth;
 mod tok;
 
 use std::io::Write;
 
 use bktchk::BracketCheck;
 use declobj::DeclarativeObject;
+use reqauth::RequestAuthority;
 use tok::Lexeme::*;
 use tok::Tokenizer;
 
@@ -38,8 +40,10 @@ fn main() {
     let pass0 = BracketCheck::new(input);
     let pass1 = DeclarativeObject::new(pass0);
     let pass2 = BracketCheck::new(pass1);
+    let pass3 = RequestAuthority::new(pass2);
+    let pass4 = BracketCheck::new(pass3);
 
-    for rctok in pass2 {
+    for rctok in pass4 {
         let tok = rctok.borrow();
         match tok.lexeme {
             Bad => {

@@ -28,6 +28,7 @@ vclpp_SRC = \
 	src/bktchk.rs \
 	src/cli.rs \
 	src/declobj.rs \
+	src/reqauth.rs \
 	src/tok.rs
 
 vcltok_SRC = \
