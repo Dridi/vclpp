@@ -39,6 +39,40 @@ where I: Iterator<Item=RcToken> {
     }
 }
 
+impl<I> BracketCheck<I>
+where I: Iterator<Item=RcToken> {
+
+    fn process(&mut self, rctok: RcToken) -> RcToken {
+        self.nest.update(&rctok);
+        self.token = Some(RcToken::clone(&rctok));
+
+        {
+            let tok = rctok.borrow();
+
+            if tok.lexeme == OpeningBlock && self.nest.groups > 0 {
+                return tok.turn_bad("block inside an expression");
+            }
+
+            if self.nest.groups < 0 || self.nest.blocks < 0 {
+                return tok.turn_bad("unbalanced brackets");
+            }
+        }
+
+        rctok
+    }
+
+    fn process_last(&mut self) -> Option<RcToken> {
+        return if self.nest.groups != 0 || self.nest.blocks != 0 {
+            let last_tok = self.token.take().unwrap();
+            let bad_tok = last_tok.borrow().turn_bad("incomplete VCL");
+            Some(bad_tok)
+        }
+        else {
+            None
+        }
+    }
+}
+
 impl<I> Iterator for BracketCheck<I>
 where I: Iterator<Item=RcToken> {
     type Item = RcToken;
@@ -49,35 +83,15 @@ where I: Iterator<Item=RcToken> {
         }
 
         let rctok = match self.input.next() {
-            Some(rc) => rc,
-            None => return if self.nest.groups != 0 || self.nest.blocks != 0 {
-                    self.broken = true;
-                    let last_tok = self.token.take().unwrap();
-                    let bad_tok = last_tok.borrow().turn_bad("incomplete VCL");
-                    Some(bad_tok)
-                }
-                else {
-                    None
-                }
+            Some(rc) => Some(self.process(rc)),
+            None => self.process_last(),
         };
 
-        self.nest.update(&rctok);
-        self.token = Some(RcToken::clone(&rctok));
+        self.broken |= match &rctok {
+            &Some(ref tok) => tok.borrow().lexeme == Bad,
+            &None => false,
+        };
 
-        {
-            let tok = rctok.borrow();
-
-            if tok.lexeme == OpeningBlock && self.nest.groups > 0 {
-                self.broken = true;
-                return Some(tok.turn_bad("opening a block inside an expression"));
-            }
-
-            if self.nest.groups < 0 || self.nest.blocks < 0 {
-                self.broken = true;
-                return Some(tok.turn_bad("unbalanced brackets"));
-            }
-        }
-
-        Some(rctok)
+        rctok
     }
 }

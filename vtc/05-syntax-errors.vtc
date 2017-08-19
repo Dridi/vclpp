@@ -129,7 +129,7 @@ EOF
 
 # Spurious block
 
-shell -exit 1 -expect "opening a block inside an expression, Line 2, Pos 10" {
+shell -exit 1 -expect "block inside an expression, Line 2, Pos 10" {
 vclpp <<EOF
 vmod.obj name {
 	.method({block});
