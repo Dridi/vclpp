@@ -20,7 +20,7 @@ shell {
 vclpp <<EOF | tee hello.vcl
 vcl 4.0;
 
-import directors;
+import directors as lb;
 
 probe default { }
 
@@ -29,17 +29,17 @@ backend www_de { .host = "${bad_backend}"; }
 backend www_us { .host = "${bad_backend}"; }
 backend www_ca { .host = "${bad_backend}"; }
 
-directors.round_robin www_eu {
+lb.round_robin www_eu {
 	.add_backend(www_fr);
 	.add_backend(www_de);
 }
 
-directors.round_robin www_na {
+lb.round_robin www_na {
 	.add_backend(www_us);
 	.add_backend(www_ca);
 }
 
-directors.fallback www {
+lb.fallback www {
 	.add_backend(www_eu.backend());
 	.add_backend(www_na.backend());
 }

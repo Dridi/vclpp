@@ -21,6 +21,7 @@ mod cli;
 mod declobj;
 mod reqauth;
 mod tok;
+mod vmodalias;
 
 use std::io::Write;
 
@@ -29,6 +30,7 @@ use declobj::DeclarativeObject;
 use reqauth::RequestAuthority;
 use tok::Lexeme::*;
 use tok::Tokenizer;
+use vmodalias::VmodAlias;
 
 fn main() {
     let (src, mut out) = match cli::parse_args() {
@@ -42,8 +44,10 @@ fn main() {
     let pass2 = BracketCheck::new(pass1);
     let pass3 = RequestAuthority::new(pass2);
     let pass4 = BracketCheck::new(pass3);
+    let pass5 = RequestAuthority::new(pass4);
+    let pass6 = VmodAlias::new(pass5);
 
-    for rctok in pass4 {
+    for rctok in pass6 {
         let tok = rctok.borrow();
         match tok.lexeme {
             Bad => {
