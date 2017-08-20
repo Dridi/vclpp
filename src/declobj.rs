@@ -23,7 +23,7 @@ use tok::Token;
 
 use self::Expected::*;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq)]
 enum Expected {
     Code,
     Ident,
@@ -36,15 +36,6 @@ enum Expected {
     Arguments,
     EndOfMethod,
     SemiColon,
-}
-
-impl Expected {
-    fn pvcl(&self) -> bool {
-        match self {
-            &Code => false,
-            _ => true,
-        }
-    }
 }
 
 pub struct DeclarativeObject<I: Iterator<Item=RcToken>> {
@@ -304,7 +295,7 @@ where I: Iterator<Item=RcToken> {
                     #[cfg(kcov)]
                     assert!(self.input.next().is_none()); // good behavior?
 
-                    if self.expect.pvcl() {
+                    if self.expect != Code {
                         self.broken = true;
                         match self.token {
                             Some(ref rctok) => return Some(rctok.borrow()
@@ -315,7 +306,7 @@ where I: Iterator<Item=RcToken> {
                     return None;
                 }
             }
-            if !self.expect.pvcl() || self.output.len() != 0 {
+            if self.expect == Code || self.output.len() != 0 {
                 break;
             }
         }
