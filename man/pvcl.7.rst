@@ -113,6 +113,35 @@ would be translated in VCL as::
 
 ``vclpp`` uses tabulations for indentation.
 
+Request authority (since vclpp 0.1)
+-----------------------------------
+
+This is an alternative to ``req.http.host``. The host header was introduced in
+HTTP/1.1 to enable virtual hosting, that is to say the use of multiple domains
+for a single address. In HTTP/2, pseudo headers were introduced for non-header
+fields (method, URI, status) and the host header was promoted at the same time
+to an ``:authority`` pseudo-header.
+
+The host header is an important one in Varnish (or for that matter HTTP in
+general) but doesn't usually get as much credit as the URL. However, it is so
+important that it's part of the default hash. Here is the default ``vcl_hash``
+sub-routine with the proposed syntax::
+
+  sub vcl_hash {
+      hash_data(req.url);
+      if (req.authority) {
+          hash_data(req.authority);
+      } else {
+          hash_data(server.ip);
+      }
+      return (lookup);
+  }
+
+The authority is now as important as the URL and of course ``bereq.authority``
+is supported too. Interesting trivia, HTTP/2 introduced a ``:path`` pseudo
+header and Varnish already dissects client URLs to extract only the path in
+``req.url``. Does this call for a ``req.path`` alternative syntax too?
+
 LIMITATIONS
 ===========
 
@@ -134,9 +163,10 @@ Consider the following example::
   include "policy.vcl"
 
 The main file along with the two included files can probably be safely
-preprocessed by ``vclpp`` although only ``environment.vcl`` would likely be
-relevant to the current features. This is typically where you would find
-backend and director definitions whereas the policy would contain transaction
+preprocessed by ``vclpp`` (assuming there aren't any more nested includes)
+but some files would be relevant for some features, and other features may
+break with such a setup. ``environment.vcl`` is typically where you would find
+backend and director definitions and ``policy.vcl`` would contain transaction
 sub-routines instead.
 
 Now consider this case::
@@ -157,7 +187,7 @@ this point it could fail gracefully (but would have already output some code)
 but this is not the case yet.
 
 In summary, ``vclpp`` doesn't expand includes and leaves them as-is but also
-has no way to know yet the level of nesting of included fragments.
+has no way of knowing yet the level of nesting of included fragments.
 
 COPYRIGHT
 =========
