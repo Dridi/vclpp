@@ -81,7 +81,7 @@ check: all
 
 kcov:
 	$(MAKE) $(AM_MAKEFLAGS) clean
-	$(MAKE) $(AM_MAKEFLAGS) RUSTC_FLAGS=-g check
+	$(MAKE) $(AM_MAKEFLAGS) RUSTC_FLAGS="-g --cfg kcov" check
 	$(KCOV) $(KCOV_FLAGS) --merge kcov/report/ kcov/vtc/*/*/
 	$(MAKE) $(AM_MAKEFLAGS) clean-kcov-temp
 	@echo "Results: $(abs_builddir)/kcov/report/index.html"

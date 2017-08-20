@@ -301,6 +301,9 @@ where I: Iterator<Item=RcToken> {
                     }
                 }
                 None => {
+                    #[cfg(kcov)]
+                    assert!(self.input.next().is_none()); // good behavior?
+
                     if self.expect.pvcl() {
                         self.broken = true;
                         match self.token {

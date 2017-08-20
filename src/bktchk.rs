@@ -62,6 +62,9 @@ where I: Iterator<Item=RcToken> {
     }
 
     fn process_last(&mut self) -> Option<RcToken> {
+        #[cfg(kcov)]
+        assert!(self.input.next().is_none()); // good behavior?
+
         return if self.nest.groups != 0 || self.nest.blocks != 0 {
             let last_tok = self.token.take().unwrap();
             let bad_tok = last_tok.borrow().turn_bad("incomplete VCL");

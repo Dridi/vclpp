@@ -56,7 +56,11 @@ where I: Iterator<Item=RcToken> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next() {
             Some(rc) => Some(self.process(rc)),
-            None => None,
+            None => {
+                #[cfg(kcov)]
+                assert!(self.0.next().is_none()); // good behavior?
+                None
+            }
         }
     }
 }
