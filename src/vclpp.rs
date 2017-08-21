@@ -45,9 +45,11 @@ fn main() {
     let pass3 = RequestAuthority::new(pass2);
     let pass4 = BracketCheck::new(pass3);
     let pass5 = RequestAuthority::new(pass4);
-    let pass6 = VmodAlias::new(pass5);
+    let pass6 = BracketCheck::new(pass5);
+    let pass7 = VmodAlias::new(pass6);
+    let pass8 = BracketCheck::new(pass7);
 
-    for rctok in pass6 {
+    for rctok in pass8 {
         let tok = rctok.borrow();
         match tok.lexeme {
             Bad => {
