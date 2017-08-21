@@ -16,17 +16,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use tok::Flow;
 use tok::Lexeme::*;
-use tok::Nest;
 use tok::RcToken;
 use tok::Token;
 
-pub struct RequestAuthority<I: Iterator<Item=RcToken>>(Nest<I>);
+pub struct RequestAuthority<I: Iterator<Item=RcToken>>(Flow<I>);
 
 impl<I> RequestAuthority<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> RequestAuthority<I> {
-        RequestAuthority(Nest::new(input))
+        RequestAuthority(Flow::new(input))
     }
 }
 

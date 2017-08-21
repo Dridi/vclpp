@@ -16,8 +16,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use tok::Flow;
 use tok::Lexeme::*;
-use tok::Nest;
 use tok::RcToken;
 use tok::Token;
 
@@ -39,7 +39,7 @@ enum Expected {
 }
 
 pub struct DeclarativeObject<I: Iterator<Item=RcToken>> {
-    nest: Nest<I>,
+    flow: Flow<I>,
     output: Vec<RcToken>,
     expect: Expected,
     ident: Option<RcToken>,
@@ -53,7 +53,7 @@ impl<I> DeclarativeObject<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> DeclarativeObject<I> {
         DeclarativeObject {
-            nest: Nest::new(input),
+            flow: Flow::new(input),
             output: vec!(),
             expect: Code,
             ident: None,
@@ -65,8 +65,8 @@ where I: Iterator<Item=RcToken> {
     }
 
     fn reset(&mut self) {
-        assert!(self.nest.groups == 0);
-        assert!(self.nest.blocks == 0);
+        assert!(self.flow.groups == 0);
+        assert!(self.flow.blocks == 0);
         self.expect = Code;
         self.ident = None;
         self.object = None;
@@ -99,7 +99,7 @@ where I: Iterator<Item=RcToken> {
 
     fn process(&mut self, rctok: RcToken) {
         let lex = rctok.borrow().lexeme;
-        match (self.expect, self.nest.blocks, self.nest.groups, lex) {
+        match (self.expect, self.flow.blocks, self.flow.groups, lex) {
             (_, _, _, Bad) => return self.push(rctok),
 
             (Code, 0, _, Name(0)) => (),
@@ -132,8 +132,8 @@ where I: Iterator<Item=RcToken> {
                     self.push(Token::raw(Delim(';'), ";"));
                     self.push(Token::raw(Blank, "\n"));
                 }
-                assert!(self.nest.groups == 0);
-                assert!(self.nest.blocks == 0);
+                assert!(self.flow.groups == 0);
+                assert!(self.flow.blocks == 0);
                 self.reset();
             }
             (Dot, _, _, Prop) => self.expect = Member,
@@ -163,7 +163,7 @@ where I: Iterator<Item=RcToken> {
                 self.expect = Value;
             }
             (FieldOrMethod, _, _, OpeningGroup) => {
-                assert!(self.nest.groups == 1);
+                assert!(self.flow.groups == 1);
                 if self.method.is_none() {
                     self.push(Token::raw(ClosingGroup, ")"));
                     self.push(Token::raw(Delim(';'), ";"));
@@ -270,11 +270,11 @@ where I: Iterator<Item=RcToken> {
             return Some(self.output.remove(0));
         }
         loop {
-            match self.nest.next() {
+            match self.flow.next() {
                 Some(rctok) => self.process(rctok),
                 None => {
                     if self.expect != Code {
-                        return self.nest.incomplete();
+                        return self.flow.incomplete();
                     }
                     return None;
                 }

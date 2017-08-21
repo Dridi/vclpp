@@ -16,19 +16,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+use tok::Flow;
 use tok::Lexeme::*;
-use tok::Nest;
 use tok::RcToken;
 
 pub struct BracketCheck<I: Iterator<Item=RcToken>> {
-    nest: Nest<I>,
+    flow: Flow<I>,
 }
 
 impl<I> BracketCheck<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> BracketCheck<I> {
         BracketCheck {
-            nest: Nest::new(input),
+            flow: Flow::new(input),
         }
     }
 }
@@ -40,11 +40,11 @@ where I: Iterator<Item=RcToken> {
         {
             let tok = rctok.borrow();
 
-            if tok.lexeme == OpeningBlock && self.nest.groups > 0 {
+            if tok.lexeme == OpeningBlock && self.flow.groups > 0 {
                 return tok.turn_bad("block inside an expression");
             }
 
-            if self.nest.groups < 0 || self.nest.blocks < 0 {
+            if self.flow.groups < 0 || self.flow.blocks < 0 {
                 return tok.turn_bad("unbalanced brackets");
             }
         }
@@ -53,8 +53,8 @@ where I: Iterator<Item=RcToken> {
     }
 
     fn process_last(&mut self) -> Option<RcToken> {
-        return if self.nest.groups != 0 || self.nest.blocks != 0 {
-            self.nest.incomplete()
+        return if self.flow.groups != 0 || self.flow.blocks != 0 {
+            self.flow.incomplete()
         }
         else {
             None
@@ -67,7 +67,7 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        match self.nest.next() {
+        match self.flow.next() {
             Some(rc) => Some(self.process(rc)),
             None => self.process_last(),
         }

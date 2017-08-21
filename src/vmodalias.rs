@@ -18,8 +18,8 @@
 
 use std::collections::HashMap;
 
+use tok::Flow;
 use tok::Lexeme::*;
-use tok::Nest;
 use tok::RcToken;
 use tok::Token;
 
@@ -36,7 +36,7 @@ enum Expected {
 }
 
 pub struct VmodAlias<I: Iterator<Item=RcToken>> {
-    nest: Nest<I>,
+    flow: Flow<I>,
     aliases: HashMap<String, String>,
     expect: Expected,
     vmod: Option<RcToken>,
@@ -46,7 +46,7 @@ impl<I> VmodAlias<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> VmodAlias<I> {
         VmodAlias {
-            nest: Nest::new(input),
+            flow: Flow::new(input),
             aliases: HashMap::new(),
             expect: Code,
             vmod: None,
@@ -55,7 +55,7 @@ where I: Iterator<Item=RcToken> {
 
     fn process(&mut self, rctok: RcToken) -> Option<RcToken> {
         let lex = rctok.borrow().lexeme;
-        match (self.expect, self.nest.blocks, self.nest.groups, lex) {
+        match (self.expect, self.flow.blocks, self.flow.groups, lex) {
             (_, _, _, Bad) => Some(rctok),
 
             (Code, 0, 0, Name(0)) => {
@@ -155,11 +155,11 @@ where I: Iterator<Item=RcToken> {
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            let rctok = match self.nest.next() {
+            let rctok = match self.flow.next() {
                 Some(rctok) => self.process(rctok),
                 None => {
                     if self.expect != Code {
-                        return self.nest.incomplete();
+                        return self.flow.incomplete();
                     }
                     return None;
                 }

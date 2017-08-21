@@ -143,7 +143,7 @@ impl Token {
 
 /* ------------------------------------------------------------------- */
 
-pub struct Nest<I: Iterator<Item=RcToken>> {
+pub struct Flow<I: Iterator<Item=RcToken>> {
     pub groups: isize,
     pub blocks: isize,
     token: Option<RcToken>,
@@ -151,7 +151,7 @@ pub struct Nest<I: Iterator<Item=RcToken>> {
     broken: bool,
 }
 
-impl<I> Nest<I>
+impl<I> Flow<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> Self {
         Self {
@@ -184,7 +184,7 @@ where I: Iterator<Item=RcToken> {
     }
 }
 
-impl<I> Iterator for Nest<I>
+impl<I> Iterator for Flow<I>
 where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
