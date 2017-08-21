@@ -30,7 +30,8 @@ DESCRIPTION
 ``vclpp`` isn't meant to be a preprocessor to VCL like ``cpp`` is one to C.
 The goal is not to have macro substitution for regular VCL but rather explore
 alternative syntaxes. The PVCL language is a superset of VCL so regular VCL
-code is left untouched, in addition it offers new language constructs.
+code is left untouched, in addition it offers new language constructs. The
+alternative syntaxes can be combined, they are orthogonal.
 
 Declarative objects (since vclpp 0.1)
 -------------------------------------
@@ -141,6 +142,35 @@ The authority is now as important as the URL and of course ``bereq.authority``
 is supported too. Interesting trivia, HTTP/2 introduced a ``:path`` pseudo
 header and Varnish already dissects client URLs to extract only the path in
 ``req.url``. Does this call for a ``req.path`` alternative syntax too?
+
+VMOD aliases (since vclpp 0.1)
+------------------------------
+
+One of the grievances that sparkled from the introduction of VCL 4.0 was the
+verbosity of the new directors. Depending on their nomenclature, people could
+end up with much less readable code::
+
+  sub vcl_init {
+      new <long-name> = <long-name>.<long-name>(<lots-of-parameters>);
+      ...
+  }
+
+Named parameters introduced by Varnish 4.1 could help, a lot, but they would
+only solve part of a problem. The declarative objects syntax already mitigates
+this problem greatly, but it only helps with VMOD objects. If for some reason
+you are not happy with a VMOD name, you can always pick one that suits you
+better::
+
+  import directors as lb;
+
+  sub vcl_init {
+    new example_com_wordpress_cluster_eu = lb.round_robin();
+    ...
+  }
+
+Most VMODs have short names or are confined to ``vcl_init`` where declarative
+objects would usually do a better job at keeping the code concise and killing
+needless duplication, so this syntax is on the cosmetic side of the fence.
 
 LIMITATIONS
 ===========
