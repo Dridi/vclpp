@@ -179,7 +179,7 @@ where I: Iterator<Item=RcToken> {
         self.broken = true;
         Some(match self.token {
             Some(ref tok) => tok.borrow().turn_bad("incomplete VCL"),
-            None => Token::raw(Bad, "empty VCL"),
+            None => unreachable!(),
         })
     }
 }
@@ -388,7 +388,7 @@ impl<'a> Tokenizer<'a> {
             MayNeedMore => match self.chars.next() {
                 Some(c) => c,
                 None => {
-                    let (lexeme, _) = self.next_state('\0');
+                    let (lexeme, _) = self.next_state('\0'); // gross hack
                     self.lexeme = Some(lexeme);
                     self.handling = Done;
                     return;
