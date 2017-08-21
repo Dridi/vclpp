@@ -49,7 +49,6 @@ pub struct DeclarativeObject<I: Iterator<Item=RcToken>> {
     symbol: Option<RcToken>,
     field: Option<RcToken>,
     method: Option<RcToken>,
-    token: Option<RcToken>,
 }
 
 impl<I> DeclarativeObject<I>
@@ -66,7 +65,6 @@ where I: Iterator<Item=RcToken> {
             symbol: None,
             field: None,
             method: None,
-            token: None,
         }
     }
 
@@ -286,7 +284,6 @@ where I: Iterator<Item=RcToken> {
             match self.input.next() {
                 Some(rctok) => {
                     self.nest.update(&rctok);
-                    self.token = Some(RcToken::clone(&rctok));
                     if !self.broken {
                         self.process(rctok);
                     }
@@ -297,11 +294,7 @@ where I: Iterator<Item=RcToken> {
 
                     if self.expect != Code {
                         self.broken = true;
-                        match self.token {
-                            Some(ref rctok) => return Some(rctok.borrow()
-                                .turn_bad("incomplete VCL")),
-                            None => unreachable!(),
-                        }
+                        return self.nest.incomplete();
                     }
                     return None;
                 }

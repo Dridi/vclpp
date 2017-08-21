@@ -24,7 +24,6 @@ pub struct BracketCheck<I: Iterator<Item=RcToken>> {
     input: I,
     broken: bool,
     nest: Nest,
-    token: Option<RcToken>,
 }
 
 impl<I> BracketCheck<I>
@@ -34,7 +33,6 @@ where I: Iterator<Item=RcToken> {
             input: input,
             broken: false,
             nest: Nest::new(),
-            token: None,
         }
     }
 }
@@ -44,7 +42,6 @@ where I: Iterator<Item=RcToken> {
 
     fn process(&mut self, rctok: RcToken) -> RcToken {
         self.nest.update(&rctok);
-        self.token = Some(RcToken::clone(&rctok));
 
         {
             let tok = rctok.borrow();
@@ -66,9 +63,7 @@ where I: Iterator<Item=RcToken> {
         assert!(self.input.next().is_none()); // good behavior?
 
         return if self.nest.groups != 0 || self.nest.blocks != 0 {
-            let last_tok = self.token.take().unwrap();
-            let bad_tok = last_tok.borrow().turn_bad("incomplete VCL");
-            Some(bad_tok)
+            self.nest.incomplete()
         }
         else {
             None

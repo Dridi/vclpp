@@ -146,6 +146,7 @@ impl Token {
 pub struct Nest {
     pub groups: isize,
     pub blocks: isize,
+    token: Option<RcToken>,
 }
 
 impl Nest {
@@ -153,6 +154,7 @@ impl Nest {
         Nest {
             groups: 0,
             blocks: 0,
+            token: None,
         }
     }
 
@@ -164,6 +166,14 @@ impl Nest {
             ClosingBlock => self.blocks -= 1,
             _ => (),
         }
+        self.token = Some(RcToken::clone(&rctok));
+    }
+
+    pub fn incomplete(&mut self) -> Option<RcToken> {
+        Some(match self.token {
+            Some(ref tok) => tok.borrow().turn_bad("incomplete VCL"),
+            None => Token::raw(Bad, "empty VCL"),
+        })
     }
 }
 

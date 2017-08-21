@@ -42,7 +42,6 @@ pub struct VmodAlias<I: Iterator<Item=RcToken>> {
     expect: Expected,
     nest: Nest,
     vmod: Option<RcToken>,
-    token: Option<RcToken>,
 }
 
 impl<I> VmodAlias<I>
@@ -55,7 +54,6 @@ where I: Iterator<Item=RcToken> {
             expect: Code,
             nest: Nest::new(),
             vmod: None,
-            token: None,
         }
     }
 
@@ -164,16 +162,12 @@ where I: Iterator<Item=RcToken> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.broken {
-            #[cfg(kcov)]
-            self.input.next(); // tickle once more
-
             return None;
         }
         loop {
             let rctok = match self.input.next() {
                 Some(rctok) => {
                     self.nest.update(&rctok);
-                    self.token = Some(RcToken::clone(&rctok));
                     self.process(rctok)
                 }
                 None => {
@@ -182,11 +176,7 @@ where I: Iterator<Item=RcToken> {
 
                     if self.expect != Code {
                         self.broken = true;
-                        match self.token {
-                            Some(ref rctok) => return Some(rctok.borrow()
-                                .turn_bad("incomplete VCL")),
-                            None => unreachable!(),
-                        }
+                        return self.nest.incomplete();
                     }
                     return None;
                 }
