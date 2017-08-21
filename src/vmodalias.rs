@@ -36,11 +36,9 @@ enum Expected {
 }
 
 pub struct VmodAlias<I: Iterator<Item=RcToken>> {
-    input: I,
-    broken: bool,
+    nest: Nest<I>,
     aliases: HashMap<String, String>,
     expect: Expected,
-    nest: Nest,
     vmod: Option<RcToken>,
 }
 
@@ -48,11 +46,9 @@ impl<I> VmodAlias<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> VmodAlias<I> {
         VmodAlias {
-            input: input,
-            broken: false,
+            nest: Nest::new(input),
             aliases: HashMap::new(),
             expect: Code,
-            nest: Nest::new(),
             vmod: None,
         }
     }
@@ -60,10 +56,7 @@ where I: Iterator<Item=RcToken> {
     fn process(&mut self, rctok: RcToken) -> Option<RcToken> {
         let lex = rctok.borrow().lexeme;
         match (self.expect, self.nest.blocks, self.nest.groups, lex) {
-            (_, _, _, Bad) => {
-                self.broken = true;
-                Some(rctok)
-            }
+            (_, _, _, Bad) => Some(rctok),
 
             (Code, 0, 0, Name(0)) => {
                 if rctok.borrow().as_str() == "import" {
@@ -161,21 +154,11 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.broken {
-            return None;
-        }
         loop {
-            let rctok = match self.input.next() {
-                Some(rctok) => {
-                    self.nest.update(&rctok);
-                    self.process(rctok)
-                }
+            let rctok = match self.nest.next() {
+                Some(rctok) => self.process(rctok),
                 None => {
-                    #[cfg(kcov)]
-                    assert!(self.input.next().is_none()); // good behavior?
-
                     if self.expect != Code {
-                        self.broken = true;
                         return self.nest.incomplete();
                     }
                     return None;

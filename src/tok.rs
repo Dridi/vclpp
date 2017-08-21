@@ -143,22 +143,27 @@ impl Token {
 
 /* ------------------------------------------------------------------- */
 
-pub struct Nest {
+pub struct Nest<I: Iterator<Item=RcToken>> {
     pub groups: isize,
     pub blocks: isize,
     token: Option<RcToken>,
+    input: I,
+    broken: bool,
 }
 
-impl Nest {
-    pub fn new() -> Self {
-        Nest {
+impl<I> Nest<I>
+where I: Iterator<Item=RcToken> {
+    pub fn new(input: I) -> Self {
+        Self {
             groups: 0,
             blocks: 0,
+            input: input,
             token: None,
+            broken: false,
         }
     }
 
-    pub fn update(&mut self, rctok: &RcToken) {
+    fn update(&mut self, rctok: &RcToken) {
         match rctok.borrow().lexeme {
             OpeningGroup => self.groups += 1,
             ClosingGroup => self.groups -= 1,
@@ -166,14 +171,42 @@ impl Nest {
             ClosingBlock => self.blocks -= 1,
             _ => (),
         }
+        self.broken |= rctok.borrow().lexeme == Bad;
         self.token = Some(RcToken::clone(&rctok));
     }
 
     pub fn incomplete(&mut self) -> Option<RcToken> {
+        self.broken = true;
         Some(match self.token {
             Some(ref tok) => tok.borrow().turn_bad("incomplete VCL"),
             None => Token::raw(Bad, "empty VCL"),
         })
+    }
+}
+
+impl<I> Iterator for Nest<I>
+where I: Iterator<Item=RcToken> {
+    type Item = RcToken;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.broken {
+            return None;
+        }
+        match self.input.next() {
+            Some(rctok) => {
+                self.update(&rctok);
+                Some(rctok)
+            }
+            None => {
+                #[cfg(kcov)]
+                assert!(self.input.next().is_none()); // good behavior?
+
+                if self.token.is_none() {
+                    return self.incomplete();
+                }
+                None
+            }
+        }
     }
 }
 

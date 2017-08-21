@@ -21,18 +21,14 @@ use tok::Nest;
 use tok::RcToken;
 
 pub struct BracketCheck<I: Iterator<Item=RcToken>> {
-    input: I,
-    broken: bool,
-    nest: Nest,
+    nest: Nest<I>,
 }
 
 impl<I> BracketCheck<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> BracketCheck<I> {
         BracketCheck {
-            input: input,
-            broken: false,
-            nest: Nest::new(),
+            nest: Nest::new(input),
         }
     }
 }
@@ -41,8 +37,6 @@ impl<I> BracketCheck<I>
 where I: Iterator<Item=RcToken> {
 
     fn process(&mut self, rctok: RcToken) -> RcToken {
-        self.nest.update(&rctok);
-
         {
             let tok = rctok.borrow();
 
@@ -59,9 +53,6 @@ where I: Iterator<Item=RcToken> {
     }
 
     fn process_last(&mut self) -> Option<RcToken> {
-        #[cfg(kcov)]
-        assert!(self.input.next().is_none()); // good behavior?
-
         return if self.nest.groups != 0 || self.nest.blocks != 0 {
             self.nest.incomplete()
         }
@@ -76,20 +67,9 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.broken {
-            return None;
-        }
-
-        let rctok = match self.input.next() {
+        match self.nest.next() {
             Some(rc) => Some(self.process(rc)),
             None => self.process_last(),
-        };
-
-        self.broken |= match &rctok {
-            &Some(ref tok) => tok.borrow().lexeme == Bad,
-            &None => false,
-        };
-
-        rctok
+        }
     }
 }

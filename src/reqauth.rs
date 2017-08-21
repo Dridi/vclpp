@@ -17,15 +17,16 @@
  */
 
 use tok::Lexeme::*;
+use tok::Nest;
 use tok::RcToken;
 use tok::Token;
 
-pub struct RequestAuthority<I: Iterator<Item=RcToken>>(I);
+pub struct RequestAuthority<I: Iterator<Item=RcToken>>(Nest<I>);
 
 impl<I> RequestAuthority<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> RequestAuthority<I> {
-        RequestAuthority(input)
+        RequestAuthority(Nest::new(input))
     }
 }
 
@@ -56,11 +57,7 @@ where I: Iterator<Item=RcToken> {
     fn next(&mut self) -> Option<Self::Item> {
         match self.0.next() {
             Some(rc) => Some(self.process(rc)),
-            None => {
-                #[cfg(kcov)]
-                assert!(self.0.next().is_none()); // good behavior?
-                None
-            }
+            None => None,
         }
     }
 }

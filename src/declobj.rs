@@ -39,11 +39,9 @@ enum Expected {
 }
 
 pub struct DeclarativeObject<I: Iterator<Item=RcToken>> {
-    input: I,
+    nest: Nest<I>,
     output: Vec<RcToken>,
-    broken: bool,
     expect: Expected,
-    nest: Nest,
     ident: Option<RcToken>,
     object: Option<RcToken>,
     symbol: Option<RcToken>,
@@ -55,11 +53,9 @@ impl<I> DeclarativeObject<I>
 where I: Iterator<Item=RcToken> {
     pub fn new(input: I) -> DeclarativeObject<I> {
         DeclarativeObject {
-            input: input,
+            nest: Nest::new(input),
             output: vec!(),
-            broken: false,
             expect: Code,
-            nest: Nest::new(),
             ident: None,
             object: None,
             symbol: None,
@@ -81,7 +77,6 @@ where I: Iterator<Item=RcToken> {
     }
 
     fn push(&mut self, rctok: RcToken) {
-        self.broken |= rctok.borrow().lexeme == Bad;
         self.output.push(rctok);
     }
 
@@ -105,10 +100,7 @@ where I: Iterator<Item=RcToken> {
     fn process(&mut self, rctok: RcToken) {
         let lex = rctok.borrow().lexeme;
         match (self.expect, self.nest.blocks, self.nest.groups, lex) {
-            (_, _, _, Bad) => {
-                self.push(rctok);
-                return;
-            }
+            (_, _, _, Bad) => return self.push(rctok),
 
             (Code, 0, _, Name(0)) => (),
             (Code, 0, _, Name(1)) => {
@@ -274,26 +266,14 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.broken {
-            return None;
-        }
         if self.output.len() > 0 {
             return Some(self.output.remove(0));
         }
         loop {
-            match self.input.next() {
-                Some(rctok) => {
-                    self.nest.update(&rctok);
-                    if !self.broken {
-                        self.process(rctok);
-                    }
-                }
+            match self.nest.next() {
+                Some(rctok) => self.process(rctok),
                 None => {
-                    #[cfg(kcov)]
-                    assert!(self.input.next().is_none()); // good behavior?
-
                     if self.expect != Code {
-                        self.broken = true;
                         return self.nest.incomplete();
                     }
                     return None;
