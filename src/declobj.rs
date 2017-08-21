@@ -80,7 +80,7 @@ where I: Iterator<Item=RcToken> {
         self.output.push(rctok);
     }
 
-    fn error(&mut self, rctok: &RcToken) {
+    fn error(&mut self, rctok: RcToken) {
         let msg = match self.expect {
             Code |
             Arguments |
@@ -120,11 +120,11 @@ where I: Iterator<Item=RcToken> {
 
             (Ident, _, _, Name(0)) => self.expect = Block,
             (Ident, _, _, Blank) => return,
-            (Ident, _, _, _) => return self.error(&rctok),
+            (Ident, _, _, _) => return self.error(rctok),
 
             (Block, _, _, OpeningBlock) => self.expect = Dot,
             (Block, _, _, Blank) => return,
-            (Block, _, _, _) => return self.error(&rctok),
+            (Block, _, _, _) => return self.error(rctok),
 
             (Dot, _, _, ClosingBlock) => {
                 if self.field.is_none() && self.method.is_none() {
@@ -138,15 +138,15 @@ where I: Iterator<Item=RcToken> {
             }
             (Dot, _, _, Prop) => self.expect = Member,
             (Dot, _, _, Blank) => return,
-            (Dot, _, _, _) => return self.error(&rctok),
+            (Dot, _, _, _) => return self.error(rctok),
 
             (Member, _, _, Name(0)) => {
                 self.symbol = Some(RcToken::clone(&rctok));
                 self.expect = FieldOrMethod;
             }
-            (Member, _, _, Name(_)) => return self.error(&rctok),
+            (Member, _, _, Name(_)) => return self.error(rctok),
             (Member, _, _, Blank) => return,
-            (Member, _, _, _) => return self.error(&rctok),
+            (Member, _, _, _) => return self.error(rctok),
 
             (FieldOrMethod, _, _, Delim('=')) => {
                 if self.method.is_some() {
@@ -175,9 +175,9 @@ where I: Iterator<Item=RcToken> {
                 self.expect = Arguments;
             }
             (FieldOrMethod, _, _, Blank) => return,
-            (FieldOrMethod, _, _, _) => return self.error(&rctok),
+            (FieldOrMethod, _, _, _) => return self.error(rctok),
 
-            (Value, _, 0, Delim(';')) => return self.error(&rctok),
+            (Value, _, 0, Delim(';')) => return self.error(rctok),
             (Value, _, _, Blank) => return,
             (Value, _, _, _) => self.expect = EndOfField,
 
@@ -189,7 +189,7 @@ where I: Iterator<Item=RcToken> {
             (Arguments, _, _, _) => (),
 
             (SemiColon, _, 0, Delim(';')) => self.expect = Dot,
-            (SemiColon, _, _, _) => return self.error(&rctok),
+            (SemiColon, _, _, _) => return self.error(rctok),
 
             (_, _, _, _) => unreachable!(),
         }
