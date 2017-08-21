@@ -74,7 +74,6 @@ VTC_TESTS = \
 	vtc/05-syntax-errors.vtc \
 	vtc/06-io-errors.vtc
 
-
 if WITH_TESTS
 TESTS = $(VTC_TESTS)
 

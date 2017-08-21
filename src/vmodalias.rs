@@ -109,27 +109,27 @@ where I: Iterator<Item=RcToken> {
                     self.vmod = None;
                     return Some(rctok);
                 }
-                Some(rctok.borrow().turn_bad("expected 'from' or 'as'"))
+                Some(rctok.borrow().turn_bad("expected 'from', 'as' or ';'"))
             }
             (From, _, _, Delim(';')) => {
                 self.expect = Code;
                 Some(rctok)
             }
             (From, _, _, _) =>
-                Some(rctok.borrow().turn_bad("expected 'from' or 'as'")),
+                Some(rctok.borrow().turn_bad("expected 'from', 'as' or ';'")),
 
             (Alias, _, _, Name(0)) => {
                 let vmod = self.vmod.take().unwrap();
                 let name = format!("{}.", vmod.borrow().as_str());
                 let alias = format!("{}.", rctok.borrow().as_str());
                 if self.aliases.insert(alias, name).is_some() {
-                    unimplemented!()
+                    return Some(rctok.borrow().turn_bad("duplicate alias"));
                 }
                 self.expect = From;
                 None
             }
             (Alias, _, _, _) =>
-                Some(rctok.borrow().turn_bad("unexpected vmod alias")),
+                Some(rctok.borrow().turn_bad("expected vmod alias")),
 
             (Path, _, _, SimpleString) |
             (Path, _, _, BlockString) => {
@@ -137,7 +137,7 @@ where I: Iterator<Item=RcToken> {
                 Some(rctok)
             }
             (Path, _, _, _) =>
-                Some(rctok.borrow().turn_bad("unexpected vmod path")),
+                Some(rctok.borrow().turn_bad("expected vmod path")),
 
             (SemiColon, _, _, Delim(';')) => {
                 self.expect = Code;

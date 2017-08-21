@@ -166,3 +166,80 @@ EOF
 shell -exit 1 -expect "incomplete VCL, Line 1, Pos 10" {
 printf 'vmod.obj name' | vclpp
 }
+
+# Expecting a VMOD name
+
+shell -exit 1 -expect "expected vmod name, Line 1, Pos 7" {
+vclpp <<EOF
+import;
+EOF
+}
+
+# Expecting a VMOD path
+
+shell -exit 1 -expect "expected vmod path, Line 1, Pos 17" {
+vclpp <<EOF
+import vmod from;
+EOF
+}
+
+# Expecting a VMOD alias
+
+shell -exit 1 -expect "expected vmod alias, Line 1, Pos 15" {
+vclpp <<EOF
+import vmod as;
+EOF
+}
+
+# Too many aliases
+
+shell -exit 1 -expect "expected 'from' or ';', Line 1, Pos 22" {
+vclpp <<EOF
+import vmod as alias as alias;
+EOF
+}
+
+# Missing keyword
+
+shell -exit 1 -expect "expected 'from', 'as' or ';', Line 1, Pos 13" {
+vclpp <<EOF
+import vmod "libvmod_vmod.so";
+EOF
+}
+
+# Missing keyword
+
+shell -exit 1 -expect "expected 'from', 'as' or ';', Line 1, Pos 13" {
+vclpp <<EOF
+import vmod alias;
+EOF
+}
+
+# Missing semi-colon
+
+shell -exit 1 -expect "expected ';', Line 4, Pos 1" {
+vclpp <<EOF
+import one from "libvmod_one.so";
+import two from "libvmod_two.so"
+
+sub vcl_init {
+}
+EOF
+}
+
+# Duplicate alias
+
+shell -exit 1 -expect "duplicate alias, Line 2, Pos 15" {
+vclpp <<EOF
+import one as alias;
+import two as alias;
+EOF
+}
+
+# Incomplete import
+
+shell -exit 1 -expect "incomplete VCL, Line 1, Pos 12" {
+vclpp <<EOF
+import vmod
+EOF
+}
