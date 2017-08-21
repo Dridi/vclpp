@@ -269,7 +269,7 @@ where I: Iterator<Item=RcToken> {
         if self.output.len() > 0 {
             return Some(self.output.remove(0));
         }
-        loop {
+        while self.output.len() == 0 {
             match self.flow.next() {
                 Some(rctok) => self.process(rctok),
                 None => {
@@ -279,11 +279,7 @@ where I: Iterator<Item=RcToken> {
                     return None;
                 }
             }
-            if self.expect == Code || self.output.len() != 0 {
-                break;
-            }
         }
-        assert!(self.output.len() > 0);
         Some(self.output.remove(0))
     }
 }

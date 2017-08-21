@@ -154,19 +154,18 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        loop {
-            let rctok = match self.flow.next() {
+        let mut rctok = None;
+        while rctok.is_none() {
+            rctok = match self.flow.next() {
                 Some(rctok) => self.process(rctok),
                 None => {
                     if self.expect != Code {
                         return self.flow.incomplete();
                     }
-                    return None;
+                    break;
                 }
             };
-            if rctok.is_some() {
-                return rctok;
-            }
         }
+        rctok
     }
 }
