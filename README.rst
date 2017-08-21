@@ -168,7 +168,7 @@ For example, a systemd integration can be as simple as::
 
 If you are using labels, you can add as many ``ExecStartPre`` options as you
 need to process all your PVCL files. This is true for includes too, but some
-limitations are documented in the ``pvcl(7)`` manual.
+significant limitations are documented in the ``pvcl(7)`` manual.
 
 Contributing
 ------------
