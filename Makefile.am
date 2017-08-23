@@ -25,7 +25,6 @@ noinst_SCRIPTS = src/vcltok
 
 vclpp_SRC = \
 	src/vclpp.rs \
-	src/bktchk.rs \
 	src/cli.rs \
 	src/declobj.rs \
 	src/reqauth.rs \

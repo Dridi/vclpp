@@ -39,6 +39,7 @@ pub struct VmodAlias<I: Iterator<Item=RcToken>> {
     flow: Flow<I>,
     aliases: HashMap<String, String>,
     expect: Expected,
+    broken: bool,
     vmod: Option<RcToken>,
 }
 
@@ -49,6 +50,7 @@ where I: Iterator<Item=RcToken> {
             flow: Flow::new(input),
             aliases: HashMap::new(),
             expect: Code,
+            broken: false,
             vmod: None,
         }
     }
@@ -93,13 +95,12 @@ where I: Iterator<Item=RcToken> {
                 Some(rctok)
             }
             (Vmod, _, _, _) =>
-                Some(rctok.borrow().turn_bad("expected vmod name")),
+                Some(self.flow.bust("expected vmod name")),
 
             (From, _, _, Name(0)) => {
                 if rctok.borrow().as_str() == "as" {
                     if self.vmod.is_none() {
-                        return Some(rctok.borrow()
-                            .turn_bad("expected 'from' or ';'"))
+                        return Some(self.flow.bust("expected 'from' or ';'"))
                     }
                     self.expect = Alias;
                     return None;
@@ -109,42 +110,39 @@ where I: Iterator<Item=RcToken> {
                     self.vmod = None;
                     return Some(rctok);
                 }
-                Some(rctok.borrow().turn_bad("expected 'from', 'as' or ';'"))
+                Some(self.flow.bust("expected 'from', 'as' or ';'"))
             }
             (From, _, _, Delim(';')) => {
                 self.expect = Code;
                 Some(rctok)
             }
             (From, _, _, _) =>
-                Some(rctok.borrow().turn_bad("expected 'from', 'as' or ';'")),
+                Some(self.flow.bust("expected 'from', 'as' or ';'")),
 
             (Alias, _, _, Name(0)) => {
                 let vmod = self.vmod.take().unwrap();
                 let name = format!("{}.", vmod.borrow().as_str());
                 let alias = format!("{}.", rctok.borrow().as_str());
                 if self.aliases.insert(alias, name).is_some() {
-                    return Some(rctok.borrow().turn_bad("duplicate alias"));
+                    return Some(self.flow.bust("duplicate alias"));
                 }
                 self.expect = From;
                 None
             }
-            (Alias, _, _, _) =>
-                Some(rctok.borrow().turn_bad("expected vmod alias")),
+            (Alias, _, _, _) => Some(self.flow.bust("expected vmod alias")),
 
             (Path, _, _, SimpleString) |
             (Path, _, _, BlockString) => {
                 self.expect = SemiColon;
                 Some(rctok)
             }
-            (Path, _, _, _) =>
-                Some(rctok.borrow().turn_bad("expected vmod path")),
+            (Path, _, _, _) => Some(self.flow.bust("expected vmod path")),
 
             (SemiColon, _, _, Delim(';')) => {
                 self.expect = Code;
                 Some(rctok)
             }
-            (SemiColon, _, _, _) =>
-                Some(rctok.borrow().turn_bad("expected ';'")),
+            (SemiColon, _, _, _) => Some(self.flow.bust("expected ';'")),
         }
     }
 }
@@ -157,9 +155,18 @@ where I: Iterator<Item=RcToken> {
         let mut rctok = None;
         while rctok.is_none() {
             rctok = match self.flow.next() {
-                Some(rctok) => self.process(rctok),
+                Some(rctok) => {
+                    match self.process(rctok) {
+                        Some(res) => {
+                            self.broken |= res.borrow().lexeme == Bad;
+                            Some(res)
+                        }
+                        None => None
+                    }
+                }
                 None => {
-                    if self.expect != Code {
+                    if !self.broken && self.expect != Code {
+                        self.broken = true;
                         return self.flow.incomplete();
                     }
                     break;

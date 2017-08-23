@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-mod bktchk;
 mod cli;
 mod declobj;
 mod reqauth;
@@ -25,9 +24,9 @@ mod vmodalias;
 
 use std::io::Write;
 
-use bktchk::BracketCheck;
 use declobj::DeclarativeObject;
 use reqauth::RequestAuthority;
+use tok::Flow;
 use tok::Lexeme::*;
 use tok::Tokenizer;
 use vmodalias::VmodAlias;
@@ -39,17 +38,12 @@ fn main() {
     };
 
     let input = Tokenizer::new(src.chars());
-    let pass0 = BracketCheck::new(input);
-    let pass1 = DeclarativeObject::new(pass0);
-    let pass2 = BracketCheck::new(pass1);
-    let pass3 = RequestAuthority::new(pass2);
-    let pass4 = BracketCheck::new(pass3);
-    let pass5 = RequestAuthority::new(pass4);
-    let pass6 = BracketCheck::new(pass5);
-    let pass7 = VmodAlias::new(pass6);
-    let pass8 = BracketCheck::new(pass7);
+    let pass1 = DeclarativeObject::new(input);
+    let pass2 = RequestAuthority::new(pass1);
+    let pass3 = VmodAlias::new(pass2);
+    let vcl = Flow::new(pass3);
 
-    for rctok in pass8 {
+    for rctok in vcl {
         let tok = rctok.borrow();
         match tok.lexeme {
             Bad => {

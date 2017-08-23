@@ -148,7 +148,6 @@ pub struct Flow<I: Iterator<Item=RcToken>> {
     pub blocks: isize,
     token: Option<RcToken>,
     input: I,
-    broken: bool,
 }
 
 impl<I> Flow<I>
@@ -159,28 +158,48 @@ where I: Iterator<Item=RcToken> {
             blocks: 0,
             input: input,
             token: None,
-            broken: false,
         }
     }
 
-    fn update(&mut self, rctok: &RcToken) {
-        match rctok.borrow().lexeme {
+    fn update(&mut self, rctok: RcToken) -> Option<RcToken> {
+        let lex = rctok.borrow().lexeme;
+        match lex {
             OpeningGroup => self.groups += 1,
             ClosingGroup => self.groups -= 1,
             OpeningBlock => self.blocks += 1,
             ClosingBlock => self.blocks -= 1,
             _ => (),
         }
-        self.broken |= rctok.borrow().lexeme == Bad;
+
         self.token = Some(RcToken::clone(&rctok));
+
+        if lex == OpeningBlock && self.groups > 0 {
+            return Some(self.bust("block inside an expression"));
+        }
+
+        if self.groups < 0 || self.blocks < 0 {
+            return Some(self.bust("unbalanced brackets"));
+        }
+
+        Some(rctok)
+    }
+
+    pub fn bust(&mut self, msg: &'static str) -> RcToken {
+        let busted = match self.token {
+            Some(ref rctok) => rctok.borrow().turn_bad(msg),
+            None => unreachable!(),
+        };
+        self.token = Some(RcToken::clone(&busted));
+        busted
     }
 
     pub fn incomplete(&mut self) -> Option<RcToken> {
-        self.broken = true;
-        Some(match self.token {
-            Some(ref tok) => tok.borrow().turn_bad("incomplete VCL"),
-            None => unreachable!(),
-        })
+        Some(self.bust("incomplete VCL"))
+    }
+
+    fn tickle(&mut self) {
+        #[cfg(kcov)]
+        assert!(self.input.next().is_none()); // good iterator behavior?
     }
 }
 
@@ -189,20 +208,22 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.broken {
-            return None;
+        match self.token {
+            Some(ref rctok) if rctok.borrow().lexeme == Bad => return None,
+            _ => (),
         }
         match self.input.next() {
             Some(rctok) => {
-                self.update(&rctok);
-                Some(rctok)
+                if rctok.borrow().lexeme == Bad {
+                    self.tickle();
+                }
+                self.update(rctok)
             }
             None => {
-                #[cfg(kcov)]
-                assert!(self.input.next().is_none()); // good behavior?
-
-                if self.token.is_none() {
-                    return self.incomplete();
+                self.tickle();
+                assert!(self.token.is_some());
+                if self.groups != 0 || self.blocks != 0 {
+                    return self.incomplete()
                 }
                 None
             }

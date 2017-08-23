@@ -42,6 +42,7 @@ pub struct DeclarativeObject<I: Iterator<Item=RcToken>> {
     flow: Flow<I>,
     output: Vec<RcToken>,
     expect: Expected,
+    broken: bool,
     ident: Option<RcToken>,
     object: Option<RcToken>,
     symbol: Option<RcToken>,
@@ -56,6 +57,7 @@ where I: Iterator<Item=RcToken> {
             flow: Flow::new(input),
             output: vec!(),
             expect: Code,
+            broken: false,
             ident: None,
             object: None,
             symbol: None,
@@ -77,10 +79,15 @@ where I: Iterator<Item=RcToken> {
     }
 
     fn push(&mut self, rctok: RcToken) {
-        self.output.push(rctok);
+        let lex = rctok.borrow().lexeme;
+        self.broken |= lex == Bad;
+        match lex {
+            Bad => self.output = vec!(rctok),
+            _ => self.output.push(rctok),
+        }
     }
 
-    fn error(&mut self, rctok: RcToken) {
+    fn error(&mut self) {
         let msg = match self.expect {
             Code |
             Arguments |
@@ -94,7 +101,8 @@ where I: Iterator<Item=RcToken> {
             Value => "expected value",
             SemiColon => "expected ';'",
         };
-        self.push(rctok.borrow().turn_bad(msg));
+        let bust = self.flow.bust(msg);
+        self.push(bust);
     }
 
     fn process(&mut self, rctok: RcToken) {
@@ -108,8 +116,8 @@ where I: Iterator<Item=RcToken> {
                 self.expect = Ident;
             }
             (Code, 0, _, Name(_)) => {
-                self.push(rctok.borrow().turn_bad("invalid identifier"));
-                return;
+                let bust = self.flow.bust("invalid identifier");
+                return self.push(bust);
             }
             (Code, _, _, _) => (),
 
@@ -120,11 +128,11 @@ where I: Iterator<Item=RcToken> {
 
             (Ident, _, _, Name(0)) => self.expect = Block,
             (Ident, _, _, Blank) => return,
-            (Ident, _, _, _) => return self.error(rctok),
+            (Ident, _, _, _) => return self.error(),
 
             (Block, _, _, OpeningBlock) => self.expect = Dot,
             (Block, _, _, Blank) => return,
-            (Block, _, _, _) => return self.error(rctok),
+            (Block, _, _, _) => return self.error(),
 
             (Dot, _, _, ClosingBlock) => {
                 if self.field.is_none() && self.method.is_none() {
@@ -138,20 +146,20 @@ where I: Iterator<Item=RcToken> {
             }
             (Dot, _, _, Prop) => self.expect = Member,
             (Dot, _, _, Blank) => return,
-            (Dot, _, _, _) => return self.error(rctok),
+            (Dot, _, _, _) => return self.error(),
 
             (Member, _, _, Name(0)) => {
                 self.symbol = Some(RcToken::clone(&rctok));
                 self.expect = FieldOrMethod;
             }
-            (Member, _, _, Name(_)) => return self.error(rctok),
+            (Member, _, _, Name(_)) => return self.error(),
             (Member, _, _, Blank) => return,
-            (Member, _, _, _) => return self.error(rctok),
+            (Member, _, _, _) => return self.error(),
 
             (FieldOrMethod, _, _, Delim('=')) => {
                 if self.method.is_some() {
-                    self.push(rctok.borrow().turn_bad("field after methods"));
-                    return;
+                    let bust = self.flow.bust("field after methods");
+                    return self.push(bust);
                 }
                 if self.field.is_some() {
                     self.push(Token::raw(Delim(','), ","));
@@ -175,9 +183,9 @@ where I: Iterator<Item=RcToken> {
                 self.expect = Arguments;
             }
             (FieldOrMethod, _, _, Blank) => return,
-            (FieldOrMethod, _, _, _) => return self.error(rctok),
+            (FieldOrMethod, _, _, _) => return self.error(),
 
-            (Value, _, 0, Delim(';')) => return self.error(rctok),
+            (Value, _, 0, Delim(';')) => return self.error(),
             (Value, _, _, Blank) => return,
             (Value, _, _, _) => self.expect = EndOfField,
 
@@ -189,7 +197,7 @@ where I: Iterator<Item=RcToken> {
             (Arguments, _, _, _) => (),
 
             (SemiColon, _, 0, Delim(';')) => self.expect = Dot,
-            (SemiColon, _, _, _) => return self.error(rctok),
+            (SemiColon, _, _, _) => return self.error(),
 
             (_, _, _, _) => unreachable!(),
         }
@@ -273,7 +281,8 @@ where I: Iterator<Item=RcToken> {
             match self.flow.next() {
                 Some(rctok) => self.process(rctok),
                 None => {
-                    if self.expect != Code {
+                    if !self.broken && self.expect != Code {
+                        self.broken = true;
                         return self.flow.incomplete();
                     }
                     return None;
