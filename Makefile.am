@@ -72,7 +72,8 @@ VTC_TESTS = \
 	vtc/03-complex-object.vtc \
 	vtc/04-command-line.vtc \
 	vtc/05-syntax-errors.vtc \
-	vtc/06-io-errors.vtc
+	vtc/06-io-errors.vtc \
+	vtc/07-extra-coverage.vtc
 
 if WITH_TESTS
 TESTS = $(VTC_TESTS)

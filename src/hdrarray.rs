@@ -85,14 +85,7 @@ where I: Iterator<Item=RcToken> {
                 self.expect = Header;
                 None
             }
-            (Open, _, _, _) => {
-                assert!(self.token.is_some());
-                assert!(self.header.is_none());
-                self.expect = Code;
-                let result = self.token.take();
-                self.token = Some(rctok);
-                result
-            }
+            (Open, _, _, _) => Some(self.flow.bust("expected '[' or '.'")),
 
             (Header, _, _, Name(0)) => {
                 self.expect = Close;
@@ -121,8 +114,8 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.expect == Code && self.token.is_some() {
-            return self.token.take();
+        if self.broken {
+            return None;
         }
         let mut rctok = None;
         while rctok.is_none() {
@@ -137,10 +130,7 @@ where I: Iterator<Item=RcToken> {
                     }
                 }
                 None => {
-                    if !self.broken && self.expect != Code {
-                        self.broken = true;
-                        return self.flow.incomplete();
-                    }
+                    assert!(self.expect == Code);
                     break;
                 }
             };

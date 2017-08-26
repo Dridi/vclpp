@@ -249,3 +249,33 @@ vclpp <<EOF
 import vmod
 EOF
 }
+
+# Missing header name
+
+shell -exit 1 -expect "expected '[' or '.', Line 2, Pos 14" {
+vclpp <<EOF
+sub vcl_recv {
+	set req.http = req.xid;
+}
+EOF
+}
+
+# Missing header name
+
+shell -exit 1 -expect "expected header name, Line 2, Pos 15" {
+vclpp <<EOF
+sub vcl_recv {
+	set req.http[] = req.xid;
+}
+EOF
+}
+
+# Missing ]
+
+shell -exit 1 -expect "expected ']', Line 2, Pos 32" {
+vclpp <<EOF
+sub vcl_recv {
+	unset req.http[x-forwarded-for;
+}
+EOF
+}
