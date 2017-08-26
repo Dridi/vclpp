@@ -172,6 +172,25 @@ Most VMODs have short names or are confined to ``vcl_init`` where declarative
 objects would usually do a better job at keeping the code concise and killing
 needless duplication, so this syntax is on the cosmetic side of the fence.
 
+Headers associative arrays (since vclpp 0.1)
+--------------------------------------------
+
+HTTP headers are an ordered list of name/value entries, and a name may appear
+more than once under certain conditions. The grammar for the name only allows
+certain characters, and Varnish only supports a subset of that. The grammar
+forbids certain known characters known as delimiters and square brackets are
+delimiters.
+
+With this alternative syntax, these two line of code do the same thing::
+
+  set req.http.name = "value";
+  set req.http[name] = "value";
+
+There is no fundamental difference, but using the square brackets really feels
+the same as using an associative array and the syntax isn't too disruptive.
+By using separators to access names, Varnish could support the whole grammar
+from the specification. Fortunately those are rarely encountered in the wild.
+
 LIMITATIONS
 ===========
 
