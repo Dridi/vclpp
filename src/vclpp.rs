@@ -18,6 +18,7 @@
 
 mod cli;
 mod declobj;
+mod hdrarray;
 mod reqauth;
 mod tok;
 mod vmodalias;
@@ -25,6 +26,7 @@ mod vmodalias;
 use std::io::Write;
 
 use declobj::DeclarativeObject;
+use hdrarray::HeaderArray;
 use reqauth::RequestAuthority;
 use tok::Flow;
 use tok::Lexeme::*;
@@ -41,7 +43,8 @@ fn main() {
     let pass1 = DeclarativeObject::new(input);
     let pass2 = RequestAuthority::new(pass1);
     let pass3 = VmodAlias::new(pass2);
-    let vcl = Flow::new(pass3);
+    let pass4 = HeaderArray::new(pass3);
+    let vcl = Flow::new(pass4);
 
     for rctok in vcl {
         let tok = rctok.borrow();

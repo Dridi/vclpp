@@ -86,7 +86,7 @@ grep -q 'bad token: invalid string' tokens.txt
 
 # Screw the syntax
 
-shell -expect "bad token: unexpected character" {printf 'vcl [4.0];' | vcltok}
+shell -expect "bad token: unexpected character" {printf 'vcl@4.0;' | vcltok}
 
 # Double dot
 

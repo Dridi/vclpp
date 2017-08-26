@@ -27,6 +27,7 @@ vclpp_SRC = \
 	src/vclpp.rs \
 	src/cli.rs \
 	src/declobj.rs \
+	src/hdrarray.rs \
 	src/reqauth.rs \
 	src/tok.rs \
 	src/vmodalias.rs

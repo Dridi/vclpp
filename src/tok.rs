@@ -86,6 +86,8 @@ pub enum Lexeme {
     ClosingGroup,
     OpeningBlock,
     ClosingBlock,
+    OpeningArray,
+    ClosingArray,
     Bad
 }
 
@@ -321,6 +323,8 @@ impl<'a> Tokenizer<'a> {
                 ')' => (ClosingGroup, CurrentReady),
                 '{' => (OpeningBlock, MayNeedMore),
                 '}' => (ClosingBlock, CurrentReady),
+                '[' => (OpeningArray, CurrentReady),
+                ']' => (ClosingArray, CurrentReady),
                 _ => (self.error("unexpected character"), Done),
             };
         }

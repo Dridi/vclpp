@@ -48,7 +48,7 @@ sub vcl_recv {
 	set req.backend_hint = www.backend();
 
 	if (req.authority == "static.example.com") {
-		unset req.http.cookie;
+		unset req.http[cookie];
 	}
 }
 EOF
