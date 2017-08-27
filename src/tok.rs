@@ -318,7 +318,7 @@ impl<'a> Tokenizer<'a> {
                 ',' |
                 ';' => (Delim(c), CurrentReady),
                 '"' => (SimpleString, NeedsMore),
-                '#' => (Comment, NeedsMore),
+                '#' => (Comment, MayNeedMore),
                 '(' => (OpeningGroup, CurrentReady),
                 ')' => (ClosingGroup, CurrentReady),
                 '{' => (OpeningBlock, MayNeedMore),
@@ -339,7 +339,7 @@ impl<'a> Tokenizer<'a> {
             (OpeningBlock, _, _) => (OpeningBlock, PreviousReady),
 
             (Delim(_), '/', '*') => (CComment, NeedsMore),
-            (Delim(_), '/', '/') => (CxxComment, NeedsMore),
+            (Delim(_), '/', '/') => (CxxComment, MayNeedMore),
             (Delim(_), '/', _) => (Delim('/'), PreviousReady),
 
             (Name(_), '.', '.') => (self.error("invalid name"), Done),
