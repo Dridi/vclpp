@@ -35,6 +35,7 @@ enum Expected {
     SemiColon,
 }
 
+#[must_use = "preprocessors are lazy and do nothing unless consumed"]
 pub struct VmodAlias<I: Iterator<Item=RcToken>> {
     flow: Flow<I>,
     aliases: HashMap<String, String>,

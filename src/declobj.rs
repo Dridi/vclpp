@@ -38,6 +38,7 @@ enum Expected {
     SemiColon,
 }
 
+#[must_use = "preprocessors are lazy and do nothing unless consumed"]
 pub struct DeclarativeObject<I: Iterator<Item=RcToken>> {
     flow: Flow<I>,
     output: Vec<RcToken>,

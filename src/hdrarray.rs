@@ -31,6 +31,7 @@ enum Expected {
     Close,
 }
 
+#[must_use = "preprocessors are lazy and do nothing unless consumed"]
 pub struct HeaderArray<I: Iterator<Item=RcToken>> {
     flow: Flow<I>,
     expect: Expected,

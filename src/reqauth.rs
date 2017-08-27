@@ -21,6 +21,7 @@ use tok::Lexeme::*;
 use tok::RcToken;
 use tok::Token;
 
+#[must_use = "preprocessors are lazy and do nothing unless consumed"]
 pub struct RequestAuthority<I: Iterator<Item=RcToken>>(Flow<I>);
 
 impl<I> RequestAuthority<I>
