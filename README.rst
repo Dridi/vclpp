@@ -6,6 +6,47 @@ alternative syntaxes for the Varnish Configuration Language. This is also an
 experiment in Rust, a programming language with the reputation of being nice
 for writing parsers.
 
+Synopsys
+--------
+
+This is how PVCL can look like before ``vclpp`` turns it into VCL::
+
+  vcl 4.0;
+
+  import directors as lb;
+
+  probe default { }
+
+  backend www_fr { ... }
+  backend www_de { ... }
+  backend www_us { ... }
+  backend www_ca { ... }
+
+  lb.round_robin www_eu {
+      .add_backend(www_fr);
+      .add_backend(www_de);
+  }
+
+  lb.round_robin www_na {
+      .add_backend(www_us);
+      .add_backend(www_ca);
+  }
+
+  lb.fallback www {
+      .add_backend(www_eu.backend());
+      .add_backend(www_na.backend());
+  }
+
+  sub vcl_recv {
+      set req.backend_hint = www.backend();
+
+      if (req.authority == "static.example.com") {
+          unset req.http[cookie];
+      }
+  }
+
+This example is taken from the "hello world" test case of the test suite.
+
 History
 -------
 
