@@ -19,7 +19,6 @@
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
-use std::str::Chars;
 
 use self::Handling::*;
 use self::Lexeme::*;
@@ -245,8 +244,8 @@ enum Handling {
 }
 
 #[must_use = "tokenizers are lazy and do nothing unless consumed"]
-pub struct Tokenizer<'a> {
-    chars: Chars<'a>,
+pub struct Tokenizer<C: Iterator<Item=char>> {
+    chars: C,
     lexeme: Option<Lexeme>,
     text: Option<String>,
     start: Cursor,
@@ -255,8 +254,9 @@ pub struct Tokenizer<'a> {
     handling: Handling,
 }
 
-impl<'a> Tokenizer<'a> {
-    pub fn new(chars: Chars) -> Tokenizer {
+impl<C> Tokenizer<C>
+where C: Iterator<Item=char> {
+    pub fn new(chars: C) -> Tokenizer<C> {
         Tokenizer {
             chars: chars,
             lexeme: None,
@@ -441,7 +441,8 @@ impl<'a> Tokenizer<'a> {
     }
 }
 
-impl<'a> Iterator for Tokenizer<'a> {
+impl<C> Iterator for Tokenizer<C>
+where C: Iterator<Item=char> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
