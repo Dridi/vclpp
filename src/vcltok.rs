@@ -22,9 +22,6 @@ mod tok;
 use std::io::Result;
 use std::io::Write;
 
-use tok::Lexeme::*;
-use tok::Tokenizer;
-
 fn write_escaped<W: Write>(out: &mut W, s: &str) -> Result<usize> {
     s.chars()
      .flat_map(|c| c.escape_default())
@@ -37,10 +34,10 @@ fn write_escaped<W: Write>(out: &mut W, s: &str) -> Result<usize> {
 fn decompose() -> Result<()> {
     let (src, mut out) = cli::parse_args()?;
 
-    for tok in Tokenizer::new(src.chars()) {
+    for tok in tok::Tokenizer::new(src.chars()) {
         write!(out, "[{}...{}] ", tok.start, tok.end)?;
         match tok.lexeme {
-            Bad => write!(out, "bad token: {}\n", tok.as_str())?,
+            tok::Lexeme::Bad => write!(out, "bad token: {}\n", tok.as_str())?,
             _ => {
                 write!(out, "token: {:?} '", tok.lexeme)?;
                 write_escaped(&mut out, tok.as_str())?;

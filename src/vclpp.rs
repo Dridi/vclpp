@@ -25,30 +25,22 @@ mod vmodalias;
 
 use std::io::Write;
 
-use declobj::DeclarativeObject;
-use hdrarray::HeaderArray;
-use reqauth::RequestAuthority;
-use tok::Flow;
-use tok::Lexeme::*;
-use tok::Tokenizer;
-use vmodalias::VmodAlias;
-
 fn main() {
     let (src, mut out) = match cli::parse_args() {
         Ok((s, o)) => (s, o),
         Err(e) => cli::fail(e),
     };
 
-    let input = Tokenizer::new(src.chars());
-    let pass1 = DeclarativeObject::new(input);
-    let pass2 = RequestAuthority::new(pass1);
-    let pass3 = VmodAlias::new(pass2);
-    let pass4 = HeaderArray::new(pass3);
-    let vcl = Flow::new(pass4);
+    let input = tok::Tokenizer::new(src.chars());
+    let pass1 = declobj::DeclarativeObject::new(input);
+    let pass2 = reqauth::RequestAuthority::new(pass1);
+    let pass3 = vmodalias::VmodAlias::new(pass2);
+    let pass4 = hdrarray::HeaderArray::new(pass3);
+    let vcl = tok::Flow::new(pass4);
 
     for tok in vcl {
         match tok.lexeme {
-            Bad => {
+            tok::Lexeme::Bad => {
                 cli::fail(format!("{}, Line {}, Pos {}",
                     tok.as_str(), tok.start.line, tok.start.column));
             }
