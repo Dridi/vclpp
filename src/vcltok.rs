@@ -36,14 +36,9 @@ fn decompose() -> Result<()> {
 
     for tok in tok::Tokenizer::new(src.chars()) {
         write!(out, "[{}...{}] ", tok.start, tok.end)?;
-        match tok.lexeme {
-            tok::Lexeme::Bad => write!(out, "bad token: {}\n", tok.as_str())?,
-            _ => {
-                write!(out, "token: {:?} '", tok.lexeme)?;
-                write_escaped(&mut out, tok.as_str())?;
-                write!(out, "'\n")?;
-            }
-        }
+        write!(out, "token: {:?} '", tok.lexeme)?;
+        write_escaped(&mut out, tok.as_str())?;
+        write!(out, "'\n")?;
     }
 
     out.flush()

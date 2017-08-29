@@ -43,28 +43,28 @@ if (*it <.makes_no_sense ||>42.0) then pass anyway!
 C{ even = inline_c(is->supported); }C
 EOF
 
-! grep 'bad token:' tokens.txt
+! grep 'token: Bad' tokens.txt
 
 awk '{print $3}' tokens.txt | sort | uniq
 }
 
 # Detect incomplete tokens
 
-shell -expect "bad token: incomplete VCL" {
+shell -expect "token: Bad 'incomplete VCL'" {
 vcltok <<EOF
 Put some seemingly valid tokens,
 and then /* start a C comment
 EOF
 }
 
-shell -expect "bad token: incomplete VCL" {
+shell -expect "token: Bad 'incomplete VCL'" {
 vcltok <<EOF
 Put some seemingly valid tokens,
 and then {" start a block string }
 EOF
 }
 
-shell -expect "bad token: incomplete VCL" {
+shell -expect "token: Bad 'incomplete VCL'" {
 vcltok <<EOF
 C code also needs to be terminated
 properly C{ once a block is started }
@@ -76,17 +76,17 @@ EOF
 shell {
 set -e
 
-vcltok >tokens.txt <<EOF
+vcltok <<EOF | tee tokens.txt
 Put some seemingly valid tokens,
 and then " break a string
 EOF
 
-grep -q 'bad token: invalid string' tokens.txt
+grep -q "token: Bad 'invalid string'" tokens.txt
 }
 
 # Screw the syntax
 
-shell -expect "bad token: unexpected character" {printf 'vcl@4.0;' | vcltok}
+shell -expect "token: Bad 'unexpected character'" {printf 'vcl@4.0;' | vcltok}
 
 # Double dot
 
@@ -97,7 +97,7 @@ vcltok >tokens.txt <<EOF
 set req..url = "/dev/null";
 EOF
 
-grep -q 'bad token: invalid name' tokens.txt
+grep -q "token: Bad 'invalid name'" tokens.txt
 }
 
 # Trailing dot
@@ -109,7 +109,7 @@ vcltok >tokens.txt <<EOF
 set req.http. = "no-cache";
 EOF
 
-grep -q 'bad token: invalid name' tokens.txt
+grep -q "token: Bad 'invalid name'" tokens.txt
 }
 
 # \ No newline at end of file

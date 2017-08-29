@@ -424,7 +424,7 @@ where C: Iterator<Item=char> {
         let (lexeme, handling) = self.next_state(c);
 
         match handling {
-            PreviousReady => (),
+            Done | PreviousReady => (),
             HasChar => unreachable!(),
             _ => self.consume(c),
         }
