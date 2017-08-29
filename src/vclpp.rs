@@ -46,8 +46,7 @@ fn main() {
     let pass4 = HeaderArray::new(pass3);
     let vcl = Flow::new(pass4);
 
-    for rctok in vcl {
-        let tok = rctok.borrow();
+    for tok in vcl {
         match tok.lexeme {
             Bad => {
                 cli::fail(format!("{}, Line {}, Pos {}",

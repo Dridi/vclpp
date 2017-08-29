@@ -56,20 +56,19 @@ where I: Iterator<Item=RcToken> {
         }
     }
 
-    fn process(&mut self, rctok: RcToken) -> Option<RcToken> {
-        let lex = rctok.borrow().lexeme;
+    fn process(&mut self, tok: RcToken) -> Option<RcToken> {
+        let lex = tok.lexeme;
         match (self.expect, self.flow.blocks, self.flow.groups, lex) {
-            (_, _, _, Bad) => Some(rctok),
+            (_, _, _, Bad) => Some(tok),
 
             (Code, 0, 0, Name(0)) => {
-                if rctok.borrow().as_str() == "import" {
+                if tok.as_str() == "import" {
                     self.expect = Vmod;
                 }
-                Some(rctok)
+                Some(tok)
             }
             (Code, _, _, Name(1)) => {
                 {
-                    let tok = rctok.borrow();
                     let tok_str = tok.as_str();
                     for (alias, name) in &self.aliases {
                         if tok_str.starts_with(alias.as_str()) {
@@ -80,50 +79,50 @@ where I: Iterator<Item=RcToken> {
                         }
                     }
                 }
-                Some(rctok)
+                Some(tok)
             }
-            (Code, _, _, _) => Some(rctok),
+            (Code, _, _, _) => Some(tok),
 
             // NB. Preserve blanks and comments
             (_, _, _, Comment) |
             (_, _, _, CComment) |
             (_, _, _, CxxComment) |
-            (_, _, _, Blank) => Some(rctok),
+            (_, _, _, Blank) => Some(tok),
 
             (Vmod, _, _, Name(0)) => {
                 self.expect = From;
-                self.vmod = Some(RcToken::clone(&rctok));
-                Some(rctok)
+                self.vmod = Some(RcToken::clone(&tok));
+                Some(tok)
             }
             (Vmod, _, _, _) =>
                 Some(self.flow.bust("expected vmod name")),
 
             (From, _, _, Name(0)) => {
-                if rctok.borrow().as_str() == "as" {
+                if tok.as_str() == "as" {
                     if self.vmod.is_none() {
                         return Some(self.flow.bust("expected 'from' or ';'"))
                     }
                     self.expect = Alias;
                     return None;
                 }
-                if rctok.borrow().as_str() == "from" {
+                if tok.as_str() == "from" {
                     self.expect = Path;
                     self.vmod = None;
-                    return Some(rctok);
+                    return Some(tok);
                 }
                 Some(self.flow.bust("expected 'from', 'as' or ';'"))
             }
             (From, _, _, Delim(';')) => {
                 self.expect = Code;
-                Some(rctok)
+                Some(tok)
             }
             (From, _, _, _) =>
                 Some(self.flow.bust("expected 'from', 'as' or ';'")),
 
             (Alias, _, _, Name(0)) => {
                 let vmod = self.vmod.take().unwrap();
-                let name = format!("{}.", vmod.borrow().as_str());
-                let alias = format!("{}.", rctok.borrow().as_str());
+                let name = format!("{}.", vmod.as_str());
+                let alias = format!("{}.", tok.as_str());
                 if self.aliases.insert(alias, name).is_some() {
                     return Some(self.flow.bust("duplicate alias"));
                 }
@@ -135,13 +134,13 @@ where I: Iterator<Item=RcToken> {
             (Path, _, _, SimpleString) |
             (Path, _, _, BlockString) => {
                 self.expect = SemiColon;
-                Some(rctok)
+                Some(tok)
             }
             (Path, _, _, _) => Some(self.flow.bust("expected vmod path")),
 
             (SemiColon, _, _, Delim(';')) => {
                 self.expect = Code;
-                Some(rctok)
+                Some(tok)
             }
             (SemiColon, _, _, _) => Some(self.flow.bust("expected ';'")),
         }
@@ -153,13 +152,13 @@ where I: Iterator<Item=RcToken> {
     type Item = RcToken;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let mut rctok = None;
-        while rctok.is_none() {
-            rctok = match self.flow.next() {
-                Some(rctok) => {
-                    match self.process(rctok) {
+        let mut tok = None;
+        while tok.is_none() {
+            tok = match self.flow.next() {
+                Some(tok) => {
+                    match self.process(tok) {
                         Some(res) => {
-                            self.broken |= res.borrow().lexeme == Bad;
+                            self.broken |= res.lexeme == Bad;
                             Some(res)
                         }
                         None => None
@@ -174,6 +173,6 @@ where I: Iterator<Item=RcToken> {
                 }
             };
         }
-        rctok
+        tok
     }
 }

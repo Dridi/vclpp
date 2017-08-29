@@ -34,20 +34,18 @@ where I: Iterator<Item=RcToken> {
 impl<I> RequestAuthority<I>
 where I: Iterator<Item=RcToken> {
 
-    fn process(&mut self, rctok: RcToken) -> RcToken {
-        if rctok.borrow().lexeme == Name(1) {
-            let tok = rctok.borrow();
-
+    fn process(&mut self, tok: RcToken) -> RcToken {
+        if tok.lexeme == Name(1) {
             if tok.as_str() == "req.authority" {
-                return Token::raw(tok.lexeme, "req.http.host");
+                return Token::raw(Name(2), "req.http.host");
             }
 
             if tok.as_str() == "bereq.authority" {
-                return Token::raw(tok.lexeme, "bereq.http.host");
+                return Token::raw(Name(2), "bereq.http.host");
             }
         }
 
-        rctok
+        tok
     }
 }
 

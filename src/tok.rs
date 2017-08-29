@@ -16,7 +16,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
 
@@ -97,36 +96,36 @@ pub struct Token {
     text: String,
 }
 
-pub type RcToken = Rc<RefCell<Token>>;
+pub type RcToken = Rc<Token>;
 
 impl Token {
     pub fn turn_bad(&self, msg: &'static str) -> RcToken {
         assert!(self.lexeme != Bad);
         assert!(!self.synthetic());
-        Rc::new(RefCell::new(Token {
+        Rc::new(Token {
             lexeme: Bad,
             start: self.start.clone(),
             end: self.end.clone(),
             text: msg.to_string(),
-        }))
+        })
     }
 
     pub fn raw(lex: Lexeme, msg: &'static str) -> RcToken {
-        Rc::new(RefCell::new(Token {
+        Rc::new(Token {
             lexeme: lex,
             start: Cursor::new(),
             end: Cursor::new(),
             text: msg.to_string(),
-        }))
+        })
     }
 
     pub fn dyn(lex: Lexeme, msg: String) -> RcToken {
-        Rc::new(RefCell::new(Token {
+        Rc::new(Token {
             lexeme: lex,
             start: Cursor::new(),
             end: Cursor::new(),
             text: msg,
-        }))
+        })
     }
 
     pub fn to_synth(&self) -> RcToken {
@@ -162,9 +161,8 @@ where I: Iterator<Item=RcToken> {
         }
     }
 
-    fn update(&mut self, rctok: RcToken) -> Option<RcToken> {
-        let lex = rctok.borrow().lexeme;
-        match lex {
+    fn update(&mut self, tok: RcToken) -> Option<RcToken> {
+        match tok.lexeme {
             OpeningGroup => self.groups += 1,
             ClosingGroup => self.groups -= 1,
             OpeningBlock => self.blocks += 1,
@@ -172,9 +170,9 @@ where I: Iterator<Item=RcToken> {
             _ => (),
         }
 
-        self.token = Some(RcToken::clone(&rctok));
+        self.token = Some(RcToken::clone(&tok));
 
-        if lex == OpeningBlock && self.groups > 0 {
+        if tok.lexeme == OpeningBlock && self.groups > 0 {
             return Some(self.bust("block inside an expression"));
         }
 
@@ -182,12 +180,12 @@ where I: Iterator<Item=RcToken> {
             return Some(self.bust("unbalanced brackets"));
         }
 
-        Some(rctok)
+        Some(tok)
     }
 
     pub fn bust(&mut self, msg: &'static str) -> RcToken {
         let busted = match self.token {
-            Some(ref rctok) => rctok.borrow().turn_bad(msg),
+            Some(ref tok) => tok.turn_bad(msg),
             None => unreachable!(),
         };
         self.token = Some(RcToken::clone(&busted));
@@ -210,15 +208,15 @@ where I: Iterator<Item=RcToken> {
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.token {
-            Some(ref rctok) if rctok.borrow().lexeme == Bad => return None,
+            Some(ref tok) if tok.lexeme == Bad => return None,
             _ => (),
         }
         match self.input.next() {
-            Some(rctok) => {
-                if rctok.borrow().lexeme == Bad {
+            Some(tok) => {
+                if tok.lexeme == Bad {
                     self.tickle();
                 }
-                self.update(rctok)
+                self.update(tok)
             }
             None => {
                 self.tickle();
@@ -284,12 +282,12 @@ where C: Iterator<Item=char> {
         assert!(self.text.is_some());
         let text = self.text.take().unwrap();
         self.text = Some(String::new());
-        Rc::new(RefCell::new(Token {
+        Rc::new(Token {
             lexeme: self.lexeme.unwrap(),
             start: self.start.clone(),
             end: self.end.clone(),
             text: text,
-        }))
+        })
     }
 
     fn next_state(&mut self, c: char) -> (Lexeme, Handling) {

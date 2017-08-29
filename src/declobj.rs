@@ -79,12 +79,12 @@ where I: Iterator<Item=RcToken> {
         // NB: only reset parsing state
     }
 
-    fn push(&mut self, rctok: RcToken) {
-        let lex = rctok.borrow().lexeme;
+    fn push(&mut self, tok: RcToken) {
+        let lex = tok.lexeme;
         self.broken |= lex == Bad;
         match lex {
-            Bad => self.output = vec!(rctok),
-            _ => self.output.push(rctok),
+            Bad => self.output = vec!(tok),
+            _ => self.output.push(tok),
         }
     }
 
@@ -106,14 +106,14 @@ where I: Iterator<Item=RcToken> {
         self.push(bust);
     }
 
-    fn process(&mut self, rctok: RcToken) {
-        let lex = rctok.borrow().lexeme;
+    fn process(&mut self, tok: RcToken) {
+        let lex = tok.lexeme;
         match (self.expect, self.flow.blocks, self.flow.groups, lex) {
-            (_, _, _, Bad) => return self.push(rctok),
+            (_, _, _, Bad) => return self.push(tok),
 
             (Code, 0, _, Name(0)) => (),
             (Code, 0, _, Name(1)) => {
-                self.object = Some(RcToken::clone(&rctok));
+                self.object = Some(RcToken::clone(&tok));
                 self.expect = Ident;
             }
             (Code, 0, _, Name(_)) => {
@@ -150,7 +150,7 @@ where I: Iterator<Item=RcToken> {
             (Dot, _, _, _) => return self.error(),
 
             (Member, _, _, Name(0)) => {
-                self.symbol = Some(RcToken::clone(&rctok));
+                self.symbol = Some(RcToken::clone(&tok));
                 self.expect = FieldOrMethod;
             }
             (Member, _, _, Name(_)) => return self.error(),
@@ -203,10 +203,10 @@ where I: Iterator<Item=RcToken> {
             (_, _, _, _) => unreachable!(),
         }
         match self.expect {
-            Code => self.push(rctok),
+            Code => self.push(tok),
             Block => {
                 assert!(self.object.is_some());
-                self.ident = Some(RcToken::clone(&rctok));
+                self.ident = Some(RcToken::clone(&tok));
                 let object = self.object.take().unwrap();
                 self.push(Token::raw(Name(0), "sub"));
                 self.push(Token::raw(Blank, " "));
@@ -216,28 +216,28 @@ where I: Iterator<Item=RcToken> {
                 self.push(Token::raw(Blank, "\n\t"));
                 self.push(Token::raw(Name(0), "new"));
                 self.push(Token::raw(Blank, " "));
-                self.push(rctok.borrow().to_synth());
+                self.push(tok.to_synth());
                 self.push(Token::raw(Blank, " "));
                 self.push(Token::raw(Delim('='), "="));
                 self.push(Token::raw(Blank, " "));
-                self.push(object.borrow().to_synth());
+                self.push(object.to_synth());
                 self.push(Token::raw(OpeningGroup, "("));
                 self.object = Some(object);
             }
             Value => {
                 assert!(self.field.is_some());
                 assert!(self.symbol.is_some());
-                assert_eq!(rctok.borrow().as_str(), "=");
+                assert_eq!(tok.as_str(), "=");
                 let field = self.field.take().unwrap();
                 self.push(Token::raw(Blank, "\t\t"));
-                self.push(field.borrow().to_synth());
+                self.push(field.to_synth());
                 self.push(Token::raw(Blank, " "));
                 self.push(Token::raw(Delim('='), "="));
                 self.push(Token::raw(Blank, " "));
                 self.field = Some(field);
                 self.symbol = None;
             }
-            EndOfField => self.push(rctok),
+            EndOfField => self.push(tok),
             Arguments => {
                 assert!(self.ident.is_some());
                 assert!(self.method.is_some());
@@ -247,16 +247,16 @@ where I: Iterator<Item=RcToken> {
                         let ident = self.ident.take().unwrap();
                         let method = self.method.take().unwrap();
                         let mut sym = String::new();
-                        sym += ident.borrow().as_str();
+                        sym += ident.as_str();
                         sym.push('.');
-                        sym += method.borrow().as_str();
+                        sym += method.as_str();
                         self.push(Token::raw(Blank, "\t"));
                         self.push(Token::dyn(Name(1), sym));
                         self.push(Token::raw(OpeningGroup, "("));
                         self.ident = Some(ident);
                         self.method = Some(method);
                     }
-                    None => self.push(rctok),
+                    None => self.push(tok),
                 }
             }
             EndOfMethod => {
@@ -280,7 +280,7 @@ where I: Iterator<Item=RcToken> {
         }
         while self.output.len() == 0 {
             match self.flow.next() {
-                Some(rctok) => self.process(rctok),
+                Some(tok) => self.process(tok),
                 None => {
                     if !self.broken && self.expect != Code {
                         self.broken = true;

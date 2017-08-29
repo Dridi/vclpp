@@ -133,6 +133,11 @@ Most of the time spent is waiting for the thousand ``varnishd`` executions to
 complete while the preprocessor is accumulating the input. No user should feel
 like complaining regardless how large their code is.
 
+This is only a while after that I realized I didn't need the RefCell in the
+first place. When PVCL code is being rewritten to VCL, either tokens are left
+untouched or synthetic tokens are created (tokens that aren't in the original
+input). Mutability isn't actually needed, so legibility didn't need harm.
+
 Ownership
 '''''''''
 

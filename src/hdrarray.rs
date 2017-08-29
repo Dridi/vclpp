@@ -52,33 +52,28 @@ where I: Iterator<Item=RcToken> {
         }
     }
 
-    fn process(&mut self, rctok: RcToken) -> Option<RcToken> {
-        let lex = rctok.borrow().lexeme;
-        match (self.expect, self.flow.blocks, self.flow.groups, lex) {
-            (_, _, _, Bad) => Some(rctok),
+    fn process(&mut self, tok: RcToken) -> Option<RcToken> {
+        match (self.expect, self.flow.blocks, self.flow.groups, tok.lexeme) {
+            (_, _, _, Bad) => Some(tok),
 
-            (Code, 0, _, _) => Some(rctok),
+            (Code, 0, _, _) => Some(tok),
             (Code, _, _, Name(1)) => {
                 assert!(self.token.is_none());
                 assert!(self.header.is_none());
-                {
-                    let tok = rctok.borrow();
-                    match tok.as_str() {
-                        "obj.http" |
-                        "req.http" |
-                        "resp.http" |
-                        "bereq.http" |
-                        "beresp.http" => {
-                            self.token = Some(RcToken::clone(&rctok));
-                            self.expect = Open;
-                            return None;
-                        }
-                        &_ => (),
+                match tok.as_str() {
+                    "obj.http" |
+                    "req.http" |
+                    "resp.http" |
+                    "bereq.http" |
+                    "beresp.http" => {
+                        self.token = Some(RcToken::clone(&tok));
+                        self.expect = Open;
+                        None
                     }
+                    &_ => Some(tok),
                 }
-                Some(rctok)
             }
-            (Code, _, _, _) => Some(rctok),
+            (Code, _, _, _) => Some(tok),
 
             (Open, _, _, OpeningArray) => {
                 assert!(self.token.is_some());
@@ -90,7 +85,7 @@ where I: Iterator<Item=RcToken> {
 
             (Header, _, _, Name(0)) => {
                 self.expect = Close;
-                self.header = Some(RcToken::clone(&rctok));
+                self.header = Some(RcToken::clone(&tok));
                 None
             }
             (Header, _, _, _) => Some(self.flow.bust("expected header name")),
@@ -100,8 +95,8 @@ where I: Iterator<Item=RcToken> {
                 assert!(self.header.is_some());
                 let var = self.token.take().unwrap();
                 let hdr = self.header.take().unwrap();
-                let tok = format!("{}.{}", var.borrow().as_str(),
-                    hdr.borrow().as_str());
+                let tok = format!("{}.{}", var.as_str(),
+                    hdr.as_str());
                 self.expect = Code;
                 Some(Token::dyn(Name(2), tok))
             }
@@ -118,13 +113,13 @@ where I: Iterator<Item=RcToken> {
         if self.broken {
             return None;
         }
-        let mut rctok = None;
-        while rctok.is_none() {
-            rctok = match self.flow.next() {
-                Some(rctok) => {
-                    match self.process(rctok) {
+        let mut tok = None;
+        while tok.is_none() {
+            tok = match self.flow.next() {
+                Some(tok) => {
+                    match self.process(tok) {
                         Some(res) => {
-                            self.broken |= res.borrow().lexeme == Bad;
+                            self.broken |= res.lexeme == Bad;
                             Some(res)
                         }
                         None => None
@@ -136,6 +131,6 @@ where I: Iterator<Item=RcToken> {
                 }
             };
         }
-        rctok
+        tok
     }
 }
