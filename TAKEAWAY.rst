@@ -194,6 +194,21 @@ One thing I don't like, is ``rustc`` complaining about (unused) dead code when
 building the ``vcltok`` program. The code in question is used by ``vclpp`` but
 those are warnings I can live with as long as they are confined to ``vcltok``.
 
+Macro system
+''''''''''''
+
+Some people consider the lack of a macro system a good language feature, and
+preprocessors like C's get a bad rap. In the C projects I work on, we use what
+we call macro tables that are defined in a file, and may be included and turn
+into different code in different places for different needs, including docs.
+
+This is not possible in Rust to the extent of my understanding of macros, Rust
+macros are a different breed altogether. The use of macros for safe compiled
+print patterns is definitely a plus. The expressiveness of built-in macros
+like ``panic``, ``unimplemented``, ``assert`` or ``unreachable`` makes it also
+pleasant not having to reinvent them for simple uses. ``unreachable`` in
+particular makes a good marker for exclusion from a code coverage report.
+
 Still a beginner
 ''''''''''''''''
 
