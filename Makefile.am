@@ -1,5 +1,5 @@
 # vclpp
-# Copyright (C) 2017  Dridi Boukelmoune <dridi.boukelmoune@gmail.com>
+# Copyright (C) 2017-2018  Dridi Boukelmoune <dridi.boukelmoune@gmail.com>
 #
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -105,9 +105,7 @@ CLEANFILES = \
 EXTRA_DIST = \
 	LICENSE \
 	README.rst \
-	src/vclpp.rs \
-	src/vcltok.rs \
-	src/cli.rs \
-	src/tok.rs \
 	vclpp.spec \
+	$(vclpp_SRC) \
+	$(vcltok_SRC) \
 	$(VTC_TESTS)
